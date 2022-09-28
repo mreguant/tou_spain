@@ -41,28 +41,31 @@ end
 
 demand0 = CSV.read("analysis/input/ES_PT_demand_by_dist.csv", DataFrame)
 filter!(row -> row.dist != "PT_total", demand0)
+sort!(demand0, :date)
+
+
 demand1 = combine(groupby(demand0, [:date, :year, :month, :day, :hour, :country]), 
     [:demand, :consumer] .=> sum .=> [:demand, :consumer]
 )
-unique(demand1.hour)
+#unique(demand1.hour)
 filter!(row->row.country=="ES", demand1)
 
 # Prices
 prices0 = CSV.read("analysis/input/hourly_pvpc_prices_and_charges_sept_2021.csv", DataFrame)
-show(describe(prices0), allrows = true)
+#show(describe(prices0), allrows = true)
 
 # Select only Península
-unique(prices0[:,[:geoname]])
+#unique(prices0[:,[:geoname]])
 filter!(row -> ismissing(row.geoname) | (row.geoname == "Península"), prices0)
-unique(prices0[:,[:geoname, :name]])
-unique(prices0.datetime)
-unique(prices0[:,[:datetime, :geoname]]) # nrow is the same, hence no duplicates (missing is equivalent to Peninsula)
+#unique(prices0[:,[:geoname, :name]])
+#unique(prices0.datetime)
+#unique(prices0[:,[:datetime, :geoname]]) # nrow is the same, hence no duplicates (missing is equivalent to Peninsula)
 
 # Time variables
 prices0.date = Date.(SubString.(prices0.datetime, 1,10))
 prices0.year = year.(prices0.date)
 prices0.hour = parse.(Int64,SubString.(prices0.datetime,12,13)) .+ 1
-unique(prices0.hour)
+#unique(prices0.hour)
 
 # Transform into wide: total cost = energy cost + access charges (no taxes)
 rename!(prices0, :name=>:tariff, :value=>:price)
@@ -75,28 +78,25 @@ end
 # very important to select unique id columns in price0!
 sort!(prices0, :datetime)
 prices = unstack(select(prices0, :date, :datetime, :hour, :year, :price, :tariff), :tariff, :price)
-unique(prices.datetime)
-show(describe(prices), allrows = true)
+#unique(prices.datetime)
+#show(describe(prices), allrows = true)
 
-names(prices)
-plot(prices.date, prices.total_TD) 
-plot!(prices.date, prices.total_0) 
-plot!(prices.date, prices.charges_TD) 
-plot!(prices.date, prices.charges_0) 
 
 prices[(.!ismissing.(prices.total_0)) .& (prices.date .> Date(2021,6,1)), :]
 prices[(.!ismissing.(prices.total_TD)) .& (prices.date .< Date(2021,6,1)), :]
 prices.total_price = ifelse.(prices.date .< Date(2021,6,1), prices.total_0, prices.total_TD)
 prices.charges = ifelse.(prices.date .< Date(2021,6,1), prices.charges_0, prices.charges_TD)
-plot(prices.date, prices.total_price) 
-plot!(prices.date, prices.charges) 
+#plot(prices.date, prices.total_price) 
+#plot!(prices.date, prices.charges) 
 
-df = leftjoin(prices, demand1,on=[:date, :year, :hour])
+
+df = leftjoin(prices,demand1,on=[:date, :year, :hour])
+filter!(row -> !(ismissing(row.month)) , df)
 filter!(row->in([6,7,8,9]).(row.month), df)
-# Delete days after 15 September because system charges were diminished in 2021 in that date
-filter!(row-> !((row.month == 9) & (row.day > 15)) , df)
 
-show(describe(df), allrows = true)
+# Delete days after 15 September because system charges were diminished in 2021 in that date
+
+#show(describe(df), allrows = true)
 df.policy = df.date .> Date(2021,6,1)
 
 # A) Compare overall prices
@@ -185,7 +185,7 @@ end
 
 
 # Write LATEX
-open("analysis/output/tables/1_price_variation.tex","w") do io
+open("analysis/output/tables/price_variation.tex","w") do io
     println(io,output)
 end 
 
@@ -202,7 +202,7 @@ demand2_agg = combine(groupby(demand2,[:country,:year,:month,:day,:hour]), :dema
 
 # Consumers
 cons=unique(demand2[:,[:year,:month,:country,:dist,:consumer]]) # monthly consumers data by distribution areas 
-unique(cons.dist)
+#unique(cons.dist)
 cons = combine(groupby(cons,[:country,:year,:month]), :consumer => sum => :consumer) # monthly consumers by country
 cons.consumer = cons.consumer/1e6 # in millions
 
@@ -212,13 +212,13 @@ demand_cons.demand_cp = demand_cons.demand ./demand_cons.consumer
 
 # Temperature for Spain
 tempES = CSV.read("build/input/EStemp.csv", DataFrame)
-unique(tempES.hour)
+#unique(tempES.hour)
 tempES.hour = parse.(Int,SubString.(tempES.date, 12,13)) .+ 1 # change hour to 1-24
 tempES = combine(groupby(tempES, [ :year, :month, :day, :hour]),  
     [:temp,:population] => ( (t, p) -> (temp = (sum(t.*p) / sum(p))) ) => :temp
 )
 tempES[:,"country"] .= "ES"
-names(tempES)
+#names(tempES)
 
 # Temperature for PT
 tempPT = filter(row->row.country=="PT",demand2)
@@ -231,7 +231,7 @@ temp = [tempES; tempPT]
 demand_temp = leftjoin(demand_cons,temp,on=[:country,:year,:month,:day,:hour])
 
 # Dropmissing in temperature 
-show(describe(demand_temp), allrows = true)
+#show(describe(demand_temp), allrows = true)
 dropmissing!(demand_temp,:temp)
 
 # Create dummy for high temperature
@@ -242,9 +242,9 @@ vnames = ["demand","consumer","demand per capita","temperature","high temperatur
 df_stats = DataFrame(country=String[],variable=String[],mean=Float64[],std=Float64[],
                             min=Float64[],md=Float64[],max=Float64[])
 for c in unique(demand_cons.country)
-    df = filter(row->row.country==c,demand_temp)
+    df_statsin = filter(row->row.country==c,demand_temp)
     count =0
-    for v in [df.demand, df.consumer,df.demand_cp,df.temp,df.temph]
+    for v in [df_statsin.demand, df_statsin.consumer,df_statsin.demand_cp,df_statsin.temp,df_statsin.temph]
         count=count+1
         n = vnames[count]
         row = [c,n,mean(v),std(v), minimum(v), median(v), maximum(v)]
@@ -288,25 +288,10 @@ end
 #______________________________________________________________________________________________________________________________________________________________________________________
 
 demand3 = filter(row -> Date(2018, 1, 1) <= row.date <= Date(2021, 9, 30), demand0)
-extrema(demand3.date)
-
-# A. Explore patterns in Portugal: big change in Nov. 2021 
-pt= filter(row->row.dist=="PT_reg",demand3)
-pt = combine(groupby(pt, [:year, :month]), 
-    [:demand,:consumer] .=> mean .=> [:demand,:consumer]
-)
-
-pt.demand_cp = pt.demand ./ pt.consumer
-pt.date = Date.(pt.year,pt.month,1)
-filter!(row->Date(2021,11,1)>=row.date>=Date(2021,8,1),pt)
-
-total = plot(pt.date,pt.demand,seriestype=:scatterpath, title = "total", legend = nothing)
-capita = plot(pt.date,pt.demand_cp,seriestype=:scatterpath, title = "per capita", legend = nothing)
-
-plot(total,capita, size = (800,400))
+#extrema(demand3.date)
 
 
-# B. Time series demand per capita ES vs. PT_reg (Spanish Data end in 10 Dec 2021, hence Nov is last full month)
+# A. Time series demand per capita ES vs. PT_reg (Spanish Data end in 10 Dec 2021, hence Nov is last full month)
 demand_cp = filter(row->row.dist!="PT_total",demand3)
 filter!(row-> row.date < Date(2021,12,1),demand_cp)
 
@@ -338,7 +323,7 @@ vline!([Date(2021,6,1)],color=:black, label="", ls = :dot)
 
 xlims!((Date(2018, 1, 1), Date(2021, 9, 15)))
 
-savefig(pseries, string("analysis/output/figures/A1_timeseries_demand_per_capita.pdf"))
+savefig(pseries, string("analysis/output/figures/timeseries_demand_per_capita.pdf"))
 
 
 # CONSUMERS
@@ -378,4 +363,4 @@ f1 = cons |>
     header={titleFontSize=18, titleFont="Times New Roman", labelFontSize=24, labelFont="Times New Roman", labelFontWeight="bold"}         
 }) + [p1 p2]
 
-@time save("analysis/output/figures/1_consumers.pdf", f1) 
+ save("analysis/output/figures/consumers.pdf", f1) 

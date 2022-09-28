@@ -43,8 +43,9 @@ pwd()
 # Load data
 df = CSV.read("analysis/input/ES_PT_demand_by_dist.csv", DataFrame, missingstring=["NA",""])
 df_pred = CSV.read("analysis/input/df_pred.csv", DataFrame, missingstring=["NA",""]) # lasso
+select!(df_pred, Not([:year,:month]))
 df = leftjoin(df, df_pred, on=[:country,:dist,:date,:hour])
-show(describe(df), allrows = true)
+#show(describe(df), allrows = true)
 sort!(df, [:country,:dist,:year,:month,:day,:hour])
 
 
@@ -59,12 +60,12 @@ df.log_demand_cp = log.(df.demand_cp)
 filter!(row->row.date <= Date(2021,9,14),df)
 
 # Check for temperature
-check = dropmissing(df,:temp)
-minimum(check.temp[(check.country.=="PT")])
+#check = dropmissing(df,:temp)
+#minimum(check.temp[(check.country.=="PT")])
 
 
 # Choose PT demand
-unique(df.dist)
+#unique(df.dist)
 filter!(row -> row.dist != "PT_total", df)
 PT_level=unique(df[df.country.=="PT",:dist])[1]
 
@@ -286,12 +287,7 @@ output = @capture_out begin
 end
 
 # Write LATEX
-open(string.("analysis/output/tables/2_DID_",w,"_panel_FE.tex"),"w") do io
-    println(io,output)
-end 
-
-# Write LATEX in Appendix
-open(string.("analysis/output/tables/A2_DID_",w,"_panel_FE.tex"),"w") do io
+open(string.("analysis/output/tables/DID_panel_FE.tex"),"w") do io
     println(io,output)
 end 
 
@@ -311,7 +307,7 @@ model_td1 = reg(df_subset, @formula(log_demand_cp ~
     # policy 
     policy & week_c & tou_fake 
     # placebo 
-    # + placebo & week_c & tou_fake 
+     + placebo & week_c & tou_fake 
     + temp*temph + 
     fe(dist)*fe(month)*fe(hour)*fe(week)*fe(tou_fake) 
     ), weights = :consumer
@@ -320,7 +316,7 @@ model_td2 = reg(df_subset, @formula(log_demand_cp ~
     # policy 
     policy & week_c & tou_fake 
     # placebo 
-    # + placebo & week_c & tou_fake 
+     + placebo & week_c & tou_fake 
     + temp*temph +
     fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
     ), weights = :consumer
@@ -330,7 +326,7 @@ model_td3 = reg(df_subset, @formula(log_demand_cp ~
     # policy 
     policy & week_c & tou_fake 
     # placebo 
-    # + placebo & week_c & tou_fake 
+     + placebo & week_c & tou_fake 
     + temp*temph +
     fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour)
     ), weights = :consumer
@@ -340,7 +336,7 @@ model_td4 = reg(df_subset, @formula(log_demand_cp ~
     # policy 
     policy & week_c & tou_fake 
     # placebo 
-    # + placebo & week_c & tou_fake 
+     + placebo & week_c & tou_fake 
     + temp*temph +
     fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
     + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour) 
@@ -469,12 +465,7 @@ output = @capture_out begin
 end
 
 # Write LATEX
-open(string.("analysis/output/tables/3_TD_",w,"_panel_FE.tex"),"w") do io
-    println(io,output)
-end 
-
-# Write LATEX for Appendix
-open(string.("analysis/output/tables/A3_TD_",w,"_panel_FE.tex"),"w") do io
+open(string.("analysis/output/tables/TD_panel_FE.tex"),"w") do io
     println(io,output)
 end 
 
@@ -497,8 +488,8 @@ model_did1 = reg(df_subset, @formula(cons_res ~
     policy & tou_real 
     # placebo
     + placebo & tou_real  
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_real) 
+    #+ temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) 
     ),weights = :consumer
 )
 
@@ -507,8 +498,8 @@ model_did2 = reg(df_subset, @formula(cons_res ~
     policy & tou_real 
     # placebo
     + placebo & tou_real  
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour)
+    #+ temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour)
     ), weights = :consumer
 )            
 
@@ -517,7 +508,7 @@ model_did3 = reg(df_subset, @formula(cons_res ~
     policy & tou_real 
     # placebo
     + placebo & tou_real  
-    + temp*temph +
+    #+ temp*temph 
     + fe(dist)*fe(month)*fe(hour)*fe(tou_real) +  fe(month_count)*fe(tou_real)*fe(hour)
     ),weights = :consumer
 )
@@ -527,8 +518,8 @@ model_did4 = reg(df_subset, @formula(cons_res ~
     policy & tou_real 
     # placebo
     + placebo & tou_real  
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour) 
+    # + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour) 
     + fe(month_count)*fe(tou_real)*fe(hour) ), weights = :consumer,
 )
 
@@ -656,12 +647,7 @@ output = @capture_out begin
 end
 
 # Write LATEX
-open(string.("analysis/output/tables/4_DID_",w,"_LASSO.tex"),"w") do io
-    println(io,output)
-end 
-
-# Write LATEX in Appendix
-open(string.("analysis/output/tables/A4_DID_",w,"_LASSO.tex"),"w") do io
+open(string.("analysis/output/tables/DID_LASSO.tex"),"w") do io
     println(io,output)
 end 
 
@@ -683,18 +669,18 @@ model_td1 = reg(df_subset, @formula(cons_res ~
     # policy 
     policy & week_c & tou_fake 
     # placebo 
-    # + placebo & week_c & tou_fake 
-    + temp*temph + 
-    fe(dist)*fe(month)*fe(hour)*fe(week)*fe(tou_fake) 
+     + placebo & week_c & tou_fake 
+    #+ temp*temph  
+    + fe(dist)*fe(month)*fe(hour)*fe(week)*fe(tou_fake) 
     ), weights = :consumer
 )
 model_td2 = reg(df_subset, @formula(cons_res ~ 
     # policy 
     policy & week_c & tou_fake 
     # placebo 
-    # + placebo & week_c & tou_fake 
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
+     + placebo & week_c & tou_fake 
+    #+ temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
     ), weights = :consumer
 )
 
@@ -702,9 +688,9 @@ model_td3 = reg(df_subset, @formula(cons_res ~
     # policy 
     policy & week_c & tou_fake 
     # placebo 
-    # + placebo & week_c & tou_fake 
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour)
+     + placebo & week_c & tou_fake 
+    #+ temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour)
     ), weights = :consumer
 )
 
@@ -712,9 +698,9 @@ model_td4 = reg(df_subset, @formula(cons_res ~
     # policy 
     policy & week_c & tou_fake 
     # placebo 
-    # + placebo & week_c & tou_fake 
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
+     + placebo & week_c & tou_fake 
+    #+ temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
     + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour) 
     ), weights = :consumer
 )
@@ -841,24 +827,19 @@ output = @capture_out begin
 end
 
 # Write LATEX
-open(string.("analysis/output/tables/3_TD_",w,"_LASSO.tex"),"w") do io
-    println(io,output)
-end 
-
-# Write LATEX for Appendix
-open(string.("analysis/output/tables/A3_TD_",w,"_LASSO.tex"),"w") do io
+open(string.("analysis/output/tables/TD_LASSO.tex"),"w") do io
     println(io,output)
 end 
 
 
 #________________________________________________________________________________________________________________________________________
 
-# 4. PLOTS 
+# 3. PLOTS 
 #________________________________________________________________________________________________________________________________________
 
 
 
-# 4.1. HOURLY TOU-WEEK: POLICY WEEK/ WEEKEND VS. PLACEBO (PANEL FE and LASSO)
+# 3.1. HOURLY TOU-WEEK: POLICY WEEK/ WEEKEND VS. PLACEBO (PANEL FE and LASSO)
 #________________________________________________________________________________________________________________________________________
 
 
@@ -877,7 +858,7 @@ model_hour_lasso = reg(df_no2020, @formula(cons_res ~
     policy & week_c & hour_c
     # placebo
     + placebo & week_c & hour_c
-    + temp*temph 
+    #+ temp*temph 
     + fe(dist)*fe(month)*fe(week_c)*fe(hour_c) + fe(dist)*fe(year)*fe(week_c)*fe(hour_c) 
     + fe(month_count)*fe(week_c)*fe(hour_c)), weights = :consumer
 )
@@ -944,19 +925,19 @@ end
 p_week = plot_td_placebo(model_hour, "week")
 p_weekend = plot_td_placebo(model_hour, "weekend")
 
-savefig(p_week,string("analysis/output/figures/2_TD_week_panel_FE.pdf"))
-savefig(p_weekend,string("analysis/output/figures/3_TD_weekend_panel_FE.pdf"))
+savefig(p_week,string("analysis/output/figures/TD_week_panel_FE.pdf"))
+savefig(p_weekend,string("analysis/output/figures/TD_weekend_panel_FE.pdf"))
 
 # LASSO
 
 p_week_lasso = plot_td_placebo(model_hour_lasso, "week")
 p_weekend_lasso = plot_td_placebo(model_hour_lasso, "weekend")
 
-savefig(p_week,string("analysis/output/figures/4_TD_week_LASSO.pdf"))
-savefig(p_weekend,string("analysis/output/figures/5_TD_weekend_LASSO.pdf"))
+savefig(p_week,string("analysis/output/figures/TD_week_LASSO.pdf"))
+savefig(p_weekend,string("analysis/output/figures/TD_weekend_LASSO.pdf"))
 
 
-# 4.2. DISTRIBUTION AREA AND TOU-WEEK (PANEL FE)
+# 3.2. DISTRIBUTION AREA AND TOU-WEEK (PANEL FE)
 #________________________________________________________________________________________________________________________________________
 
 # Do iteratively for each distributor and each hour
@@ -1042,4 +1023,4 @@ comp_wk = plot(
     size = (1000,500), bottommargin=20Plots.px, rightmargin=10Plots.px
 )
 
-savefig(comp_wk, string("analysis/output/figures/A2_TD_week_dist_panel_FE.pdf"))
+savefig(comp_wk, string("analysis/output/figures/TD_week_dist_panel_FE.pdf"))

@@ -32,17 +32,17 @@ select!(cons_es,[:year,:month,:group,:consumer])
 # B. DEMAND 
 demand_es0 = CSV.read("build/output/up_clean.csv",DataFrame)
 
-names(demand_es0)
+#names(demand_es0)
 select!(demand_es0, Not(["week_day", "weekend"]))
 
 # only COR
-unique(demand_es0.tipo_UP)
+#unique(demand_es0.tipo_UP)
 filter!(row->row.tipo_UP=="Comercializador de referencia",demand_es0)
 
 # Check 
-unique(demand_es0.firm)
-unique(demand_es0.upsalida)
-unique(demand_es0.Nombre_sujeto)
+#unique(demand_es0.firm)
+#unique(demand_es0.upsalida)
+#unique(demand_es0.Nombre_sujeto)
 
 # consumption
 up_cons = combine(groupby(demand_es0,[:year,:month,:day,:firm]), names(demand_es0,Between(:h1,:h24)).=> sum .=> names(demand_es0,Between(:h1,:h24)))
@@ -87,20 +87,20 @@ es = leftjoin(demand_es,cons_es,on=[:year,:month,:dist=>:group])
 #df = CSV.read("00_raw_data_sources/OMIE/data_aggregate_iberian_market_2022.csv", DataFrame)
 
 # Load data
-df0 = CSV.read("build/input/demand/Portugal/data_aggregate_iberian_market_mar22.csv", 
+df0 = CSV.read("build/input/data_aggregate_iberian_market_mar22.csv", 
     DataFrame, missingstring=["NA", ""]
 )
-show(describe(df0), allrows = true)
+#show(describe(df0), allrows = true)
 
 # create date and datetime
 df0[:, :date] = Date.(df0.year, df0.month, df0.day)
 
 # each region has information (variable "code") on different concepts of demand/production 
 # see pdf "data_aggregate_iberian_market_OMIE_codes" page 38
-unique(df0.region)
-unique(df0[df0.region .== "ES", :code])
-unique(df0[df0.region .== "PT", :code])
-unique(df0[df0.region .== "MI", :code])
+#unique(df0.region)
+#unique(df0[df0.region .== "ES", :code])
+#unique(df0[df0.region .== "PT", :code])
+#unique(df0[df0.region .== "MI", :code])
 
 #from now on we take :mwhLAST for demand 
 df_wide = unstack(df0, [:date,:year,:month,:day,:hour], :code, :mwhLAST)
@@ -109,16 +109,16 @@ rename!(df_wide, names(df_wide)[6:end] .=> string.("consumption_", names(df_wide
 
 # Variables 251, 51, 951 account for "Total demanda nacional clientes" for PT, ES and MIBEL, respectively
 df_wide[:, :check] = df_wide.consumption_251 .+ df_wide.consumption_51 .- df_wide.consumption_951
-extrema(skipmissing(df_wide.check))
+#extrema(skipmissing(df_wide.check))
 # Since differences are rather small we conclude that hours are the same for PT and Spain!
 # It is not the case anymore, hence we plot to see: anyway it does not occur for the time range of our interest
-plot(df_wide.date, df_wide.check)
-ylims!((0,0.01))
+#plot(df_wide.date, df_wide.check)
+#ylims!((0,0.01))
 # for the recent years, differences are up to 0.003 MWh (3kwh) per hour, small on a country level
-sum(.!(ismissing.(df_wide.consumption_251)))
-sum(df_wide.consumption_251[.!(ismissing.(df_wide.consumption_251))] .<= 0)
-sum(df_wide.consumption_51 .<= 0)
-sum(df_wide.consumption_951 .<= 0)
+#sum(.!(ismissing.(df_wide.consumption_251)))
+#sum(df_wide.consumption_251[.!(ismissing.(df_wide.consumption_251))] .<= 0)
+#sum(df_wide.consumption_51 .<= 0)
+#sum(df_wide.consumption_951 .<= 0)
 #there are only positive values
 
 # Subset for PT
@@ -131,7 +131,7 @@ demand_pt0.direct_consumption_demand = demand_pt0.PT_total .- demand_pt0.commerc
 
 # a) Adding temperature 
 
-df_PT_temp = CSV.read("build/output/PTtemp.csv", DataFrame)
+df_PT_temp = CSV.read("build/input/PTtemp.csv", DataFrame)
 rename!(df_PT_temp, :dateES => :date, :hourES => :hour)
 df_PT_temp.date = Date.(df_PT_temp.date)
 df_PT_temp.day = day.(df_PT_temp.date)
@@ -139,16 +139,16 @@ df_PT_temp.day = day.(df_PT_temp.date)
 
 # duplicates?
 df_PT_temp.match = string.(df_PT_temp.date,df_PT_temp.hour)
-unique(df_PT_temp.match)
+#unique(df_PT_temp.match)
 
 #Join
 demand_pt =  leftjoin(demand_pt0,select(df_PT_temp,:temp,:date,:hour),on=[:date,:hour])
 
-show(describe(demand_pt), allrows = true)
+#show(describe(demand_pt), allrows = true)
 # temperature data finish in Feb 2022 and have around 3 missing per year (2021-2009)*3 = 36 ~ 40
-sum(ismissing.(demand_pt[demand_pt.date .< Date(2022,2,1),:temp]))
-check=demand_pt[ismissing.(demand_pt.temp),[:date,:hour,:temp]]
-unique(check.date[year.(check.date) .!= 2022, :])
+#sum(ismissing.(demand_pt[demand_pt.date .< Date(2022,2,1),:temp]))
+#check=demand_pt[ismissing.(demand_pt.temp),[:date,:hour,:temp]]
+#unique(check.date[year.(check.date) .!= 2022, :])
 
 # Wide to long 
 demand_pt = stack(demand_pt,[:PT_reg,:PT_total])
@@ -158,13 +158,13 @@ select!(demand_pt, :date, :year,:month,:day,:variable=>:dist,:hour,:value=>:dema
 # B) Consumer data 
 ####################################################ç
 
-cons_pt = CSV.read("build/output/PT_cons_MR_ML_clean.csv",DataFrame)
+cons_pt = CSV.read("build/output/PT_consumers_clean.csv",DataFrame)
 
 
 # C. COMBINE DEMAND AND CONSUMERS DATA 
 
-unique(cons_pt.dist)
-unique(demand_pt.dist)
+#unique(cons_pt.dist)
+#unique(demand_pt.dist)
 
 pt=leftjoin(demand_pt,cons_pt,on=[:year,:month,:dist])
 
@@ -179,9 +179,9 @@ pt=leftjoin(demand_pt,cons_pt,on=[:year,:month,:dist])
 select!(pt,names(es))
 es_pt = [es;pt]
 
-unique(es_pt.dist)
+#unique(es_pt.dist)
 es_pt.country=ifelse.((es_pt.dist.=="PT_reg").|(es_pt.dist.=="PT_total"),"PT","ES")
-names(es_pt)
+#names(es_pt)
 es_pt.date = Date.(es_pt.year, es_pt.month, es_pt.day)
 filter!(row->row.date>=Date(2018,1,1),es_pt)
 
@@ -202,8 +202,8 @@ select!(df_week,[:date,:week_count])
 es_pt = leftjoin(es_pt,df_week,on=[:date])
 
 # Check
-check = filter(row->(row.hour==8).&(row.dist=="EDP").&(row.year==2020),es_pt)
-plot(check.date,check.week_count,seriestype=:scatter)
+#check = filter(row->(row.hour==8).&(row.dist=="EDP").&(row.year==2020),es_pt)
+#plot(check.date,check.week_count,seriestype=:scatter)
 
 
 
@@ -215,14 +215,14 @@ plot(check.date,check.week_count,seriestype=:scatter)
 gt = CSV.read("build/input/gtrends_dist_long.csv",DataFrame)
 select!(gt,Not(:pop))
 
-extrema(gt.date)
+#extrema(gt.date)
 
 # Combine
 df_gtrends = leftjoin(es_pt,gt,on=[:date,:dist])
 
 # Check
-check = filter(row->(row.hour==1)&(row.dist=="ENDESA"),df_gtrends)
-select!(check,:date,:index,:index_w)
+#check = filter(row->(row.hour==1)&(row.dist=="ENDESA"),df_gtrends)
+#select!(check,:date,:index,:index_w)
 
 # Complete every day of the week with corresponding gt data: Starts at Sunday and finishes at Saturday 
 sort!(df_gtrends, [:dist, :date])
@@ -260,20 +260,20 @@ df_final.quarter = quarterofyear.(df_final.date)
 
 ###############################################################################################################################################################################
 
-names(df_final)
+#names(df_final)
 # WRITE DATASET
 df_save = select!(df_final,[:date,:quarter,:country,:dist,:year,:month,:day,:hour,:dayofweek,
         :weekend,:week, :national_holiday,:demand,:consumer,:temp, :index, :index_w,:month_count,:week_count]
 )
 
-show(describe(df_save), allrows = true)
-extrema(df_save.date[.!(ismissing.(df_save.consumer))])
-extrema(df_save.date[.!(ismissing.(df_save.index_w))])
+#show(describe(df_save), allrows = true)
+#extrema(df_save.date[.!(ismissing.(df_save.consumer))])
+#extrema(df_save.date[.!(ismissing.(df_save.index_w))])
 
 # Check for temperature 
-check = dropmissing(df_save,:temp)
-filter!(row->row.date <= Date(2021,9,30),check)
-minimum(check.temp[(check.country.=="PT")])
+#check = dropmissing(df_save,:temp)
+#filter!(row->row.date <= Date(2021,9,30),check)
+#minimum(check.temp[(check.country.=="PT")])
 
 
 CSV.write("analysis/input/ES_PT_demand_by_dist.csv", df_save)
