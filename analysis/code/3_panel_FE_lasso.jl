@@ -104,8 +104,6 @@ df[df.national_holiday.==1,:tou_real].="1"
 # High temperature
 df.temph = (df.temp .> 20)
 
-# Creata dataset without 2020 
-df_no2020 = filter(row->row.year!=2020,df)
 
 # 2. TABLES
 #________________________________________________________________________________________________________________________________________
@@ -832,14 +830,109 @@ open(string.("analysis/output/tables/TD_LASSO.tex"),"w") do io
 end 
 
 
+
 #________________________________________________________________________________________________________________________________________
 
-# 3. PLOTS 
+# 3. ROBUSTNESS CHECKS 
+#________________________________________________________________________________________________________________________________________
+
+# 3.1 SPAIN 
+df_w = filter(row -> row.weekend == false, df_subset)
+df_w.consumer = df_w.consumer.*1e6 
+
+df_agg = combine(groupby(df_w,["year","month","day","hour","country","national_holiday","month_count","policy","placebo","tou_fake","tou_real"]),
+[:demand,:consumer,:temp] =>((c,n,t) -> (log_demand_cp=log(sum(c.*n)/sum(n)),consumer=sum(n),temp=sum(t.*n)/sum(n))) =>[:log_demand_cp,:consumer,:temp])
+
+df_agg.temph = (df_agg.temp .> 20)
+
+model_dist = reg(df_w, @formula(log_demand_cp ~ 
+    # policy 
+    policy  & tou_real
+    # placebo 
+     + placebo & tou_real 
+    + temp*temph +
+    fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour) 
+    + fe(month_count)*fe(tou_real)*fe(hour) 
+    ), weights = :consumer
+)
+
+
+model_spain = reg(df_agg, @formula(log_demand_cp ~ 
+    # policy 
+    policy  & tou_real
+    # placebo 
+     + placebo & tou_real 
+    + temp*temph +
+    fe(country)*fe(month)*fe(hour)*fe(tou_real) + fe(country)*fe(year)*fe(tou_real)*fe(hour) 
+    + fe(month_count)*fe(tou_real)*fe(hour) 
+    ), weights = :consumer
+)
+
+
+# 3.2 HOURS 
+df_w = filter(row -> row.weekend == false, df_subset)
+df_w.consumer = df_w.consumer.*1e6 
+
+df_agg = combine(groupby(df_w,["year","month","day","dist","national_holiday","month_count","policy","placebo"]),
+[:demand,:consumer,:temp] =>((c,n,t) -> (log_demand_cp=log(sum(c.*n)/sum(n)),consumer=sum(n),temp=sum(t.*n)/sum(n))) =>[:log_demand_cp,:consumer,:temp])
+
+df_agg.temph = (df_agg.temp .> 20)
+
+model_ave = reg(df_w, @formula(log_demand_cp ~ 
+    # policy 
+    policy  
+    # placebo 
+     + placebo  
+    + temp*temph +
+    fe(dist)*fe(month)*fe(hour) + fe(dist)*fe(year)*fe(hour) 
+    + fe(month_count)*fe(hour) 
+    ), weights = :consumer
+)
+
+
+model_daily = reg(df_agg, @formula(log_demand_cp ~ 
+    # policy 
+    policy  
+    # placebo 
+     + placebo  
+    + temp*temph +
+    fe(dist)*fe(month) + fe(dist)*fe(year)
+    + fe(month_count) 
+    ), weights = :consumer
+)
+
+
+#I guess there's more heterogeneity (in the FE) bw hours and bw dist
+
+
+# 3.3 DIRECT EFFECTS 
+
+df_agg = combine(groupby(df_w,["year","month","day","dist"]),
+[:demand,:consumer] =>((c,n) -> (log_demand_cp=log(sum(c.*n)/sum(n)))) =>:log_mean_demand_cp)
+
+df_h = leftjoin(df_w, df_agg, on=[:year,:month,:day,:dist])
+
+
+model_dist_y1 = reg(df_h, @formula(log_demand_cp ~ 
+    # policy 
+    policy  & tou_real
+    # placebo 
+     + placebo & tou_real 
+    + temp*temph +
+    log_mean_demand_cp +
+    fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour) + fe(month_count)*fe(tou_real)*fe(hour) 
+    ), weights = :consumer
+)
+
+
+#________________________________________________________________________________________________________________________________________
+
+# 4. PLOTS 
 #________________________________________________________________________________________________________________________________________
 
 
 
-# 3.1. HOURLY TOU-WEEK: POLICY WEEK/ WEEKEND VS. PLACEBO (PANEL FE and LASSO)
+# 4.1. HOURLY TOU-WEEK: POLICY WEEK/ WEEKEND VS. PLACEBO (PANEL FE and LASSO)
 #________________________________________________________________________________________________________________________________________
 
 
@@ -937,7 +1030,7 @@ savefig(p_week,string("analysis/output/figures/TD_week_LASSO.pdf"))
 savefig(p_weekend,string("analysis/output/figures/TD_weekend_LASSO.pdf"))
 
 
-# 3.2. DISTRIBUTION AREA AND TOU-WEEK (PANEL FE)
+# 4.2. DISTRIBUTION AREA AND TOU-WEEK (PANEL FE)
 #________________________________________________________________________________________________________________________________________
 
 # Do iteratively for each distributor and each hour
