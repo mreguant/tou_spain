@@ -86,8 +86,8 @@ prices[(.!ismissing.(prices.total_0)) .& (prices.date .> Date(2021,6,1)), :]
 prices[(.!ismissing.(prices.total_TD)) .& (prices.date .< Date(2021,6,1)), :]
 prices.total_price = ifelse.(prices.date .< Date(2021,6,1), prices.total_0, prices.total_TD)
 prices.charges = ifelse.(prices.date .< Date(2021,6,1), prices.charges_0, prices.charges_TD)
-#plot(prices.date, prices.total_price) 
-#plot!(prices.date, prices.charges) 
+plot(prices.date, prices.total_price) 
+plot!(prices.date, prices.charges) 
 
 
 df = leftjoin(prices,demand1,on=[:date, :year, :hour])
