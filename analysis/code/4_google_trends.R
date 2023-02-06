@@ -12,12 +12,18 @@ library("glmnet")
 library("fastDummies")
 library("lfe")
 
+#! change  --
 
+if ( Sys.info()[7]=="JacintE") {
+  shared_path <- "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+} else if ( Sys.info()[7]=="Jacint Enrich") {
+  shared_path <- "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+} 
 
-# Main repository folder as wd 
-if (!endsWith(getwd(), "tou_spain")) {
-  setwd(dirname(dirname(getwd())))
-}
+setwd(shared_path)
+
+#! --
+
 
 ## graphs format
 theme_set(theme_bw())
@@ -39,7 +45,7 @@ My_Theme = theme(axis.title.x = element_text(size = 12,
 
 ##### 0.1.  Main dataset   =======================
 
-df<-read.csv(file = "./analysis/input/ES_PT_demand_by_dist.csv",header=TRUE, sep = ",",dec=".")
+df<-read.csv(file = "analysis/input/ES_PT_demand_by_dist.csv",header=TRUE, sep = ",",dec=".")
 
 # chose sample years
 covid_included = c("yes","no")[2]
@@ -71,7 +77,7 @@ dep_var = c("levels","logs","level pc","logs pc")[3]
 
 
 if(dep_var == "level pc" |dep_var == "logs pc" ){
-  df%>%mutate(consumption = demand / consumer *1000000)->df #dist
+  df%>%mutate(consumption = demand / consumer *1000)->df #dist
   
 }
 
@@ -117,28 +123,24 @@ df %>% filter (!is.na(temp) & !is.na(consumption)  )->df
 
 
 ##### 0.2.  ML Prediction   =======================
-df_pred<-read.csv(file = "./analysis/input/df_pred.csv",header=TRUE, sep = ",",dec=".")
+df_pred<-read.csv(file = "analysis/output/data/df_lasso_rf.csv",header=TRUE, sep = ",",dec=".")
+
 
 df_pred$date <- as.Date(df_pred$date)
 df_pred %>% arrange(date) -> df_pred
 
-df_pred %>% select(-country,-year,-month)->df_pred
+df_pred <- df_pred %>% 
+  filter(method=="LASSO") %>% 
+  select(-country,-year,-month)
 
 df_d <- left_join(df,df_pred,by=c("date","hour","dist"))
 
 df_d%>%filter(date<as.Date("2021-09-15"))->df_d
 
-#average error
-# filter(df_d, date > as.Date("2021-06-01") & country == "PT" )%>%
-#   summarise(x=mean(cons_res,na.rm=TRUE),
-#             x2=sd(cons_res,na.rm=TRUE))
-
 
 ## creating dummies for regressions
 df_d %>% 
   dummy_cols(.,select_columns = c("tou","week","tou_w"))->df_d
-
-
 
 
 
@@ -153,7 +155,6 @@ df_d %>%
 
 
 df_d %>% filter(country=="ES") %>%  
-  group_by(dist) %>% 
   group_by(week_count,week_policy) %>% 
   filter(!(week_count ==179 & week_policy==0)) %>% 
   summarise(searches = weighted.mean(index_w,consumer,na.rm=TRUE)) %>% 
@@ -178,8 +179,8 @@ df_w %>%
   My_Theme
 
 
-
-ggsave(filename="weekly_searches.png",path = "./analysis/output/figures", width = 6, height = 4, device='png', dpi=700)
+ggsave(filename="weekly_searches.pdf",path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
+  
 
 
 ##### 1.2 Weekly effects -----------------------
@@ -243,7 +244,8 @@ coef_week%>% filter(week ==1) %>%
   scale_y_continuous(breaks=seq(-20,10,5))+
   My_Theme
 
-ggsave(filename="weekly_effects.png",path = "./analysis/output/figures", width = 6, height = 4, device='png', dpi=700)
+
+ggsave(filename="weekly_effects.pdf",path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
 
 
 ##### 1.3 policy effects and google searches -----------------------
@@ -272,5 +274,5 @@ policy_trend%>% filter(week ==1 ) %>%
   My_Theme+
   guides(colour = guide_legend(override.aes = list(size=3)))
 
-ggsave(filename="searches_coef.png",path = "./analysis/output/figures", width = 6, height = 4, device='png', dpi=700)
 
+ggsave(filename="searches_coef.pdf",path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)

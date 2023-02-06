@@ -14,8 +14,26 @@ if !endswith(pwd(), "tou_spain")
 end
 
 
+###!! User path -- change
+
+user = splitdir(homedir())[end]
+
+if user == "JacintE"
+    # Jacint - Personal computer
+    global shared_drive_path = "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+else
+    # BSE computers ("Jacint Enrich" / "Ruoyi Li")
+    global shared_drive_path = "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+end
+
+cd(string(shared_drive_path))
+
+## !! ----------------
+
+
+
 # A. CONSUMERS
-cons0 = CSV.read("build/input/consumers/PT_consumers.csv",DataFrame)
+cons0 = CSV.read("build/input/2_create_PT_consumers_clean/PT_consumers.csv",DataFrame)
 # Regulated / Residential 
 share = select(cons0,[:year,:month,:residential,:market])
 wide = unstack(share,[:year,:month],:market,:residential)

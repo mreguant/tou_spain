@@ -18,14 +18,32 @@ if !endswith(pwd(), "tou_spain")
     cd(dirname(dirname(@__DIR__)))
 end
 
+
+###!! User path -- change
+
+user = splitdir(homedir())[end]
+
+if user == "JacintE"
+    # Jacint - Personal computer
+    global shared_drive_path = "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+else
+    # BSE computers ("Jacint Enrich" / "Ruoyi Li")
+    global shared_drive_path = "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+end
+
+cd(string(shared_drive_path))
+
+## !! ----------------
+
+
 # 1. Cleaning consumers datasets 
 #_______________________________________________________________________________________________________________
 
 # Load data
-cons0 = CSV.read("build/input/consumers/consumer_raw_11_19.csv", DataFrame)
-cons = CSV.read("build/input/consumers/consumer_raw_16_20.csv", DataFrame)
-cons1 = CSV.read("build/input/consumers/consumer_raw_21.csv", delim =";", DataFrame)
-retailers = CSV.read("build/input/consumers/traditional_retailers_list.csv", DataFrame)
+cons0 = CSV.read("build/input/3_create_ES_reg_consumer_by_dist/consumer_raw_11_19.csv", DataFrame)
+cons = CSV.read("build/input/3_create_ES_reg_consumer_by_dist/consumer_raw_16_20.csv", DataFrame)
+cons1 = CSV.read("build/input/3_create_ES_reg_consumer_by_dist/consumer_raw_21.csv", delim =";", DataFrame)
+retailers = CSV.read("build/input/3_create_ES_reg_consumer_by_dist/traditional_retailers_list.csv", DataFrame)
 
 # Rename 
 #names(cons0)

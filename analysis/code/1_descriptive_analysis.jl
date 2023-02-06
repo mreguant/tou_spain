@@ -17,6 +17,27 @@ using VegaLite
 using Suppressor 
 using Printf
 
+
+
+###!! User path -- change
+
+user = splitdir(homedir())[end]
+
+if user == "JacintE"
+    # Jacint - Personal computer
+    global shared_drive_path = "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+else
+    # BSE computers ("Jacint Enrich" / "Ruoyi Li")
+    global shared_drive_path = "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+end
+
+cd(string(shared_drive_path))
+
+
+## !! ----------------
+
+
+
 # Setting working directory 
 if !endswith(pwd(), "tou_spain")
     cd(dirname(dirname(@__DIR__)))
@@ -35,19 +56,19 @@ if !isdir("analysis/output/figures")
     mkdir("analysis/output/figures")
 end
 
+
+if !isdir("analysis/to_add/tables")
+    mkdir("analysis/to_add/tables")
+end
 # PRICES 
 #______________________________________________________________________________________________________________________________________________________________________________________
 # Compare average prices PVPC before and after policy
 
 demand0 = CSV.read("analysis/input/ES_PT_demand_by_dist.csv", DataFrame)
 filter!(row -> row.dist != "PT_total", demand0)
-sort!(demand0, :date)
-
-
 demand1 = combine(groupby(demand0, [:date, :year, :month, :day, :hour, :country]), 
     [:demand, :consumer] .=> sum .=> [:demand, :consumer]
 )
-#unique(demand1.hour)
 filter!(row->row.country=="ES", demand1)
 
 # Prices
@@ -65,7 +86,7 @@ filter!(row -> ismissing(row.geoname) | (row.geoname == "Península"), prices0)
 prices0.date = Date.(SubString.(prices0.datetime, 1,10))
 prices0.year = year.(prices0.date)
 prices0.hour = parse.(Int64,SubString.(prices0.datetime,12,13)) .+ 1
-#unique(prices0.hour)
+unique(prices0.hour)
 
 # Transform into wide: total cost = energy cost + access charges (no taxes)
 rename!(prices0, :name=>:tariff, :value=>:price)
@@ -78,51 +99,78 @@ end
 # very important to select unique id columns in price0!
 sort!(prices0, :datetime)
 prices = unstack(select(prices0, :date, :datetime, :hour, :year, :price, :tariff), :tariff, :price)
-#unique(prices.datetime)
-#show(describe(prices), allrows = true)
 
 
 prices[(.!ismissing.(prices.total_0)) .& (prices.date .> Date(2021,6,1)), :]
 prices[(.!ismissing.(prices.total_TD)) .& (prices.date .< Date(2021,6,1)), :]
 prices.total_price = ifelse.(prices.date .< Date(2021,6,1), prices.total_0, prices.total_TD)
 prices.charges = ifelse.(prices.date .< Date(2021,6,1), prices.charges_0, prices.charges_TD)
-#plot(prices.date, prices.total_price) 
-#plot!(prices.date, prices.charges) 
 
 
-df = leftjoin(prices,demand1,on=[:date, :year, :hour])
-filter!(row -> !(ismissing(row.month)) , df)
-filter!(row->in([6,7,8,9]).(row.month), df)
+df = leftjoin(prices, demand1,on=[:date, :year, :hour])
 
-# Delete days after 15 September because system charges were diminished in 2021 in that date
-
-#show(describe(df), allrows = true)
 df.policy = df.date .> Date(2021,6,1)
+df.energy_cost = df.total_price .- df.charges
 
-# A) Compare overall prices
+df.month1 = ifelse.(df.date .<= Date(2021,09,15),df.month,10)
+df.day_week = dayofweek.(df.date)
+filter!(row ->row.day_week <= 5 ,df)
+
+# A) Price plot
+df_month = combine(groupby(df,[:year,:month1, :hour]), 
+                        [:demand,:total_price, :charges, :energy_cost] => ((d, p, c,e) ->
+                        (total_price = (sum(p.* d) / sum(d)),
+                        charges = (sum(c.* d) / sum(d)),
+                        energy_cost = (sum(e.* d) / sum(d)))) => [:total_price, :charges,:energy_cost]
+)
+
+
+df_month.date = Date.(df_month.year,df_month.month1,df_month.hour)
+
+prices_plot=plot(df_month.date, df_month.total_price,linewidth=1.5,label="Total price")
+plot!(df_month.date, df_month.charges,linewidth=1.5,label="Charges") 
+plot!(df_month.date, df_month.energy_cost,linewidth=1.5,label="Energy cost") 
+plot!(xticks = ([Date(2018,1,01),Date(2018,06,01),Date(2019,1,1),Date(2019,06,01),Date(2020,01,01),Date(2020,06,01),Date(2021,01,01),Date(2021,06,01)],
+["2018-01","2018-06","2019-01","2019-06","2020-01","2020-06","2021-01","2021-06"]),
+yticks=([0,50,100,150,200,250],["0","50","100","150","200","250"]),
+ xrotation = 60,
+ ylabel = "Electricity prices (€/MWh)",  yguidefontsize = 10,
+ legend=:topleft,legendfontsize=11)
+ plot!([Date(2021,06,01),Date(2021,10,01)], seriestype="vline",color=:black,label="")
+
+
+savefig(prices_plot, string("analysis/output/figures/price_decomposition.pdf"))
+
+
+
+# B) Compare prices Before / After
+
+filter!(row ->( row.date <= Date(2021,9,15) ),df)
+filter!(row->in([6,7,8,9]).(row.month), df) 
+filter!(row-> row.year != 2020,df)
 
 dfy = combine(groupby(df,:policy), 
-                        [:demand,:total_price, :charges] => ((d, p, c) ->
+                        [:demand,:total_price, :charges, :energy_cost] => ((d, p, c,e) ->
                         (total_price = (sum(p.* d) / sum(d)),
-                        charges = (sum(c.* d) / sum(d)))) => [:total_price, :charges]
+                        charges = (sum(c.* d) / sum(d)),
+                        energy_cost = (sum(e.* d) / sum(d)))) => [:total_price, :charges,:energy_cost]
 )
-dfy.energy_cost = dfy.total_price .- dfy.charges
+
+
 
 # Compute price variation after policy (and components) in %
-dfy
+
 total_var_100 = ((dfy.total_price[dfy.policy] .- dfy.total_price[.!dfy.policy]) ./  dfy.total_price[.!dfy.policy] * 100)[1]
 charges_var_100 = ((dfy.charges[dfy.policy] .- dfy.charges[.!dfy.policy]) ./  dfy.charges[.!dfy.policy] * 100)[1]
 energy_var_100 = ((dfy.energy_cost[dfy.policy] .- dfy.energy_cost[.!dfy.policy]) ./  dfy.energy_cost[.!dfy.policy] * 100)[1]
 
 # In this vector we show the percentual change of each component comparing June-Sept in 2021 vs 2018-19
-d = 2 # decimals
+d = 1 # decimals
 price_var = round.([total_var_100, charges_var_100, energy_var_100], digits = d)
 
-# B) Compare price variation within a day
 
-# TOU variable
-# tou tariff only by hour: 1==non-peak, 2==mid-peak, 3==peak 
-df.tou_fake =  ifelse.( df.hour .<= 8, "1", 
+# Price variation by TOU periods
+df.tou =  ifelse.( df.hour .<= 8, "1", 
                                     ifelse.(df.hour .<= 10, "2", 
                                         ifelse.(df.hour .<= 14,"3",
                                             ifelse.(df.hour .<= 18,"2",
@@ -132,18 +180,73 @@ df.tou_fake =  ifelse.( df.hour .<= 8, "1",
                                     )
                                 )
 
-# tou tariff by hour and weekday
-df[:,"tou_real"] = df.tou_fake
-df[dayofweek.(df.date) .> 5,:tou_real].="1"  
 
-dfyt = combine(groupby(df,[:policy, :tou_real]), 
-                        [:demand,:total_price, :charges] => ((d, p, c) ->
+dfyt = combine(groupby(df,[:policy, :tou]), 
+                        [:demand,:total_price, :charges,:energy_cost] => ((d, p, c,e) ->
                         (total_price = (sum(p.* d) / sum(d)),
-                        charges = (sum(c.* d) / sum(d)))) => [:total_price, :charges]
+                        charges = (sum(c.* d) / sum(d)),
+                        energy_cost = (sum(e.* d) / sum(d)))) => [:total_price, :charges,:energy_cost]
 )
 
-dfyt.energy_cost = dfyt.total_price .- dfyt.charges
+var_total = []
+var_energy = []
+var_charges = []
 
+
+for i in 1:length(unique(dfyt.tou))
+    var=(dfyt.total_price[(dfyt.tou.==unique(dfyt.tou)[i]).&(dfyt.policy.==true)] ./
+    dfyt.total_price[(dfyt.tou.==unique(dfyt.tou)[i]).&(dfyt.policy.==false)] .-1).*100
+    var_total = [var_total;var]
+end
+
+for i in 1:length(unique(dfyt.tou))
+    var=(dfyt.energy_cost[(dfyt.tou.==unique(dfyt.tou)[i]).&(dfyt.policy.==true)] ./
+    dfyt.energy_cost[(dfyt.tou.==unique(dfyt.tou)[i]).&(dfyt.policy.==false)] .-1).*100
+    var_energy = [var_energy;var]
+end
+
+for i in 1:length(unique(dfyt.tou))
+    var=(dfyt.charges[(dfyt.tou.==unique(dfyt.tou)[i]).&(dfyt.policy.==true)] ./
+    dfyt.charges[(dfyt.tou.==unique(dfyt.tou)[i]).&(dfyt.policy.==false)] .-1).*100
+    var_charges = [var_charges;var]
+end
+
+off_peak = round.(DataFrame(T = var_total[1],C=var_charges[1],E=var_energy[1]), digits = d)
+mid_peak = round.(DataFrame(T = var_total[2],C=var_charges[2],E=var_energy[2]), digits = d)
+peak = round.(DataFrame(T = var_total[3],C=var_charges[3],E=var_energy[3]), digits = d)
+
+transform!(off_peak, [:T, :C, :E] .=> (x -> Printf.format.(Ref(Printf.Format("%.1f")), x)) .=> [:T, :C, :E] )
+transform!(mid_peak, [:T, :C, :E] .=> (x -> Printf.format.(Ref(Printf.Format("%.1f")), x)) .=> [:T, :C, :E] )
+transform!(peak, [:T, :C, :E] .=> (x -> Printf.format.(Ref(Printf.Format("%.1f")), x)) .=> [:T, :C, :E] )
+
+
+output = @capture_out begin
+    # TABLE
+    println(s"\begin{tabular}{lccccccc}")
+	println(s"\toprule")
+	println(s"\multirow{2}{*}{} & \multirow{2}{*}{Average}&&  \multirow{2}{*}{Off-Peak}&& \multirow{2}{*}{Mid-Peak}&& \multirow{2}{*}{Peak} \\\\")
+	println(s"&&&&&&& \\\\")
+	println(s"\hline \\[-0.7ex]")
+	println(string("Total Price & ",price_var[1],"\\%&&", off_peak[1,1],"\\%&& ",mid_peak[1,1],"\\%&&",
+    peak[1,1],"\\%","\\\\"))
+	println(string("Charges & ",price_var[2],"\\%&&",  off_peak[1,2],"\\%&&",mid_peak[1,2],"\\%&&",
+    peak[1,2],"\\%","\\\\"))
+	println(string("Energy Costs & ",price_var[3],"\\%&&",  off_peak[1,3],"\\%&&",mid_peak[1,3],"\\%&&",
+    peak[1,3],"\\%","\\\\"))
+	println(s"\bottomrule")
+    println(s"\end{tabular}")
+end
+
+
+open("analysis/output/tables/price_variation.tex","w")  do io
+    println(io,output)
+end 
+
+
+
+# D) tou ratios (Not used)
+
+#=
 # Peak to off-peak ratio (before and after)
 ratio31_total = dfyt.total_price[dfyt.tou_real .== "3"] ./  dfyt.total_price[dfyt.tou_real .== "1"]
 ratio31_charges = dfyt.charges[dfyt.tou_real .== "3"] ./  dfyt.charges[dfyt.tou_real .== "1"]
@@ -185,10 +288,11 @@ end
 
 
 # Write LATEX
-open("analysis/output/tables/price_variation.tex","w") do io
-    println(io,output)
-end 
+#open("analysis/output/tables/1_price_variation.tex","w") do io
+#    println(io,output)
+#end 
 
+=#
 
 # SUMMARY
 #______________________________________________________________________________________________________________________________________________________________________________________
@@ -202,7 +306,7 @@ demand2_agg = combine(groupby(demand2,[:country,:year,:month,:day,:hour]), :dema
 
 # Consumers
 cons=unique(demand2[:,[:year,:month,:country,:dist,:consumer]]) # monthly consumers data by distribution areas 
-#unique(cons.dist)
+unique(cons.dist)
 cons = combine(groupby(cons,[:country,:year,:month]), :consumer => sum => :consumer) # monthly consumers by country
 cons.consumer = cons.consumer/1e6 # in millions
 
@@ -211,7 +315,7 @@ demand_cons=leftjoin(demand2_agg,cons,on=[:year,:month,:country])
 demand_cons.demand_cp = demand_cons.demand ./demand_cons.consumer 
 
 # Temperature for Spain
-tempES = CSV.read("build/input/EStemp.csv", DataFrame)
+tempES = CSV.read("build/input/1_ES_demand_create_up_clean/EStemp.csv", DataFrame)
 #unique(tempES.hour)
 tempES.hour = parse.(Int,SubString.(tempES.date, 12,13)) .+ 1 # change hour to 1-24
 tempES = combine(groupby(tempES, [ :year, :month, :day, :hour]),  
@@ -237,14 +341,20 @@ dropmissing!(demand_temp,:temp)
 # Create dummy for high temperature
 demand_temp[:,"temph"] = (demand_temp.temp .> 20)
 
+
+# create subset 
+years_out = 2020
+demand_temp = filter(!(row->row.year in years_out), demand_temp)
+
+
 # Create content of summary table
 vnames = ["demand","consumer","demand per capita","temperature","high temperature"]
 df_stats = DataFrame(country=String[],variable=String[],mean=Float64[],std=Float64[],
                             min=Float64[],md=Float64[],max=Float64[])
 for c in unique(demand_cons.country)
-    df_statsin = filter(row->row.country==c,demand_temp)
+    df = filter(row->row.country==c,demand_temp)
     count =0
-    for v in [df_statsin.demand, df_statsin.consumer,df_statsin.demand_cp,df_statsin.temp,df_statsin.temph]
+    for v in [df.demand, df.consumer,df.demand_cp,df.temp,df.temph]
         count=count+1
         n = vnames[count]
         row = [c,n,mean(v),std(v), minimum(v), median(v), maximum(v)]
@@ -261,7 +371,7 @@ sES = join(df_stats[df_stats.country.=="ES",:string], "\n")
 sPT = join(df_stats[df_stats.country.=="PT",:string], "\n")
 
 # Generate latex output
-open("analysis/output/tables/A1_summary.tex","w") do io
+open("analysis/output/tables/summary_stats.tex","w") do io
     println(io,s"\documentclass{article}")
     println(io,s"\usepackage{booktabs}")
     println(io,s"\begin{document}")
@@ -288,7 +398,7 @@ end
 #______________________________________________________________________________________________________________________________________________________________________________________
 
 demand3 = filter(row -> Date(2018, 1, 1) <= row.date <= Date(2021, 9, 30), demand0)
-#extrema(demand3.date)
+extrema(demand3.date)
 
 
 # A. Time series demand per capita ES vs. PT_reg (Spanish Data end in 10 Dec 2021, hence Nov is last full month)
@@ -297,7 +407,7 @@ filter!(row-> row.date < Date(2021,12,1),demand_cp)
 
 # Aggregate by year-month 
 demand4 = combine(groupby(demand_cp,[:country,:year,:month]), :demand => function sum_skip(x) sum(skipmissing(x)) end => :demand)
-cons=unique(demand_cp[:,[:year,:month,:country,:dist,:consumer]]) # monthly consumers data by distribution areas 
+cons=unique(demand_cp[:,[:year,:month,:country,:consumer]]) # monthly consumers data by distribution areas 
 cons = combine(groupby(cons,[:country,:year,:month]), :consumer => sum => :consumer) # monthly consumers by country
 demand_cons=leftjoin(demand4,cons,on=[:year,:month,:country])
 
@@ -309,21 +419,21 @@ sort!(demand_cons, [:country, :date])
 
 pseries = plot(demand_cons.date[demand_cons.country .== "ES"],demand_cons.demand_cp[demand_cons.country .== "ES"], 
 xticks = ([Date(2018,1,01),Date(2019,1,1),Date(2020,01,01),Date(2021,01,01)],["Jan 2018","Jan 2019"," Jan 2020","Jan 2021"]),
-ylabel = "KWh", legend=:outerright, yguidefontsize = 9,
+ylabel = "Household monthly consumption (kWh)", legend=:outerright, yguidefontsize = 9,
 lab = "Spain", ls = [:dashdot]
 )
 
 plot!(demand_cons.date[demand_cons.country .== "PT"],demand_cons.demand_cp[demand_cons.country .== "PT"], 
 xticks = ([Date(2018,1,01),Date(2019,1,1),Date(2020,01,01),Date(2021,01,01)],["Jan 2018","Jan 2019"," Jan 2020","Jan 2021"]),
-ylabel = "KWh", legend=:outerright, yguidefontsize = 9,
+ylabel = "Household monthly consumption (kWh)", yguidefontsize = 9, legend=:topleft,legendfontsize=11 ,
 lab = "Portugal"
 )
-
 vline!([Date(2021,6,1)],color=:black, label="", ls = :dot)
-
 xlims!((Date(2018, 1, 1), Date(2021, 9, 15)))
 
-savefig(pseries, string("analysis/output/figures/timeseries_demand_per_capita.pdf"))
+
+
+savefig(pseries, string("analysis/output/figures/demand_per_capita.pdf"))
 
 
 # CONSUMERS
@@ -332,9 +442,12 @@ savefig(pseries, string("analysis/output/figures/timeseries_demand_per_capita.pd
 # Aggregate demand by country and date 
 cons = unique(demand0[:,[:year,:month,:country,:dist,:consumer]])
 filter!(row -> row.year >= 2018, cons)
-filter!(row -> ! ((row.year == 2021) & (row.month > 9)), cons)
+#filter!(row -> ! ((row.year == 2021) & (row.month > 9)), cons)
 cons = combine(groupby(cons,[:country,:year,:month]), :consumer => function sum1e6(x) sum(x)/1e6 end => :consumer)
 cons[:,:date] = Date.(cons.year,cons.month,1)
+filter!(row -> row.year <2022, cons)
+
+
 
 # Plots
 p1 = cons |>
@@ -342,7 +455,7 @@ p1 = cons |>
     mark={:line},
     transform=[{filter="datum.country === 'ES'"}],
     x={"date:t",title=""},
-    y={"consumer:q",title="millions of consumer",scale = {domain = [9.5, 12], nice = false},axis={titlePadding=20}}, 
+    y={"consumer:q",title="consumers (in millions)",scale = {domain = [9.5, 12], nice = false},axis={titlePadding=20}}, 
     title = {text="SPAIN", offset=10}
 ) 
 
@@ -363,4 +476,6 @@ f1 = cons |>
     header={titleFontSize=18, titleFont="Times New Roman", labelFontSize=24, labelFont="Times New Roman", labelFontWeight="bold"}         
 }) + [p1 p2]
 
- save("analysis/output/figures/consumers.pdf", f1) 
+
+@time save("analysis/output/figures/consumers.pdf", f1) 
+

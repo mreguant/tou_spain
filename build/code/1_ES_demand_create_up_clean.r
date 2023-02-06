@@ -15,6 +15,18 @@ library("magrittr")  # ceci n'est pas un pipe
 library("HistogramTools")
 library("ncdf4")  # package for netcdf manipulation
 
+##!! change --
+
+if ( Sys.info()[7]=="JacintE") {
+  shared_path <- "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+} else if ( Sys.info()[7]=="Jacint Enrich") {
+  shared_path <- "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+} 
+
+setwd(shared_path)
+
+##!! change --
+
 # Main repository folder as wd 
 if (!endsWith(getwd(), "tou_spain")) {
   setwd(dirname(dirname(getwd())))
@@ -31,7 +43,7 @@ if (dir.exists("./build/output") == FALSE){dir.create("./build/output")}
 # Merge all days
 #############
 
-files_path <- "./build/input/demand_Spain"
+files_path <- "./build/input/1_ES_demand_create_up_clean/demand_Spain"
 
 files_names <- list.files(files_path,pattern=".csv", full.names = T)
 
@@ -53,7 +65,7 @@ df0 <- df_list %>%
 
 # Read data about Unidades de Programacion and Sujetos de Mercado 
 
-up_sujetos <- read.csv(paste0("./build/input/","UP_market_subject_links.csv"))
+up_sujetos <- read.csv(paste0("./build/input/1_ES_demand_create_up_clean/","UP_market_subject_links.csv"))
 
 df <- df0
 
@@ -82,6 +94,12 @@ df <- df %>%
 df_up0 <- df
 
 
+#aggregate at upsalida
+df_up0%>%
+  group_by(upsalida,year,month,day,week_day,weekend,tipo_UP,tipo_sujeto,firm,Nombre_sujeto)%>%
+  summarise_at(colnames(df_up0)[which(colnames(df_up0) %in% "h1"):which(colnames(df_up0) %in% "h24")],
+               sum,na.rm = TRUE) -> df_up 
+
 ### Notes: ##########################################################################
 
 ## This code merge temperature data with UP consumption data 
@@ -91,7 +109,7 @@ df_up0 <- df
 
 ##### 0.  Loading  data  ###############################
 
-read.csv(file = paste0("./build/input/","EStemp.csv"),header=TRUE, sep = ",",dec=".")%>%
+read.csv(file = paste0("./build/input/1_ES_demand_create_up_clean/","EStemp.csv"),header=TRUE, sep = ",",dec=".")%>%
   select(-X)%>%filter(year>2017)->df_temp
 
 df_temp%>%
@@ -99,11 +117,6 @@ df_temp%>%
 
 df_temp$hour<-as.numeric(substr(df_temp$hour, 1, 2))+1
 
-#aggregate at upsalida
-df_up0%>%
-  group_by(upsalida,year,month,day,week_day,weekend,tipo_UP,tipo_sujeto,firm,Nombre_sujeto)%>%
-  summarise_at(colnames(df_up0)[which(colnames(df_up0) %in% "h1"):which(colnames(df_up0) %in% "h24")],
-               sum,na.rm = TRUE) -> df_up 
 
 ##### 1. Aggregate data at distr and country level    ###############################
 
@@ -150,7 +163,7 @@ dfmerged%>%
   select(upsalida,year=year.x,month=month.x,day=day.x,week_day:h24,distr:temp.24)->df_ref
 
 
-##### 2.2  others with distr spain   ###############################
+##### 2.2  All others comercializadores == average temperature in Spain    ###############################
 
 df_up%>%filter(tipo_UP != "Comercializador de referencia" | (tipo_UP == "Comercializador de referencia" &
                                                                Nombre_sujeto=="CHC COMERCIAL DE REFERENCIA"))->df_all

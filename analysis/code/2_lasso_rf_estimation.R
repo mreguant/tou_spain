@@ -7,37 +7,35 @@ library("dplyr")     # provides data manipulating functions.
 library("magrittr")  # ceci n'est pas un pipe
 library("HistogramTools")
 library("ncdf4")  # package for netcdf manipulation
-library("hdm")
 library("glmnet")
 library("fastDummies")
-#library("lfe")
-#library("stargazer")
-#library("reshape2")
-#library("gamlr")
-#library("hrbrthemes")
-#library("ggthemes")
+library("randomForest")
+library("lfe")
 
+#### Set up working directory 
+rm(list = ls())
 
-# Main repository folder as wd 
-if (!endsWith(getwd(), "tou_spain")) {
-  setwd(dirname(dirname(getwd())))
-}
+#! change  --
 
+if ( Sys.info()[7]=="JacintE") {
+  shared_path <- "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+} else if ( Sys.info()[7]=="Jacint Enrich") {
+  shared_path <- "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+} 
 
-## create folders
-if (dir.exists("./analysis/output") == FALSE){dir.create("./analysis/output")}
-if (dir.exists("./analysis/output/data") == FALSE){dir.create("./analysis/output/data")}
-  if (dir.exists("./analysis/output/figures") == FALSE){dir.create("./analysis/output/figures")}
-  if (dir.exists("./analysis/output/tables") == FALSE){dir.create("./analysis/output/tables")}
+setwd(shared_path)
 
+#! --
 
 ## graphs format
 theme_set(theme_bw())
 
 My_Theme = theme(axis.title.x = element_text(size = 12,
-                                             margin = margin(t = 15, r = 0, b = 0, l = 0)),
+                                             #margin = margin(t = 15, r = 0, b = 0, l = 0)
+                                             ),
                  axis.title.y = element_text(size = 14,
-                                             margin = margin(t = 0, r = 20, b = 0, l = 0)),
+                                             #margin = margin(t = 0, r = 20, b = 0, l = 0)
+                                             ),
                  axis.text.x =element_text(size = 12),
                  axis.text.y =element_text(size = 10),
                  legend.background = element_rect(colour="black"),
@@ -48,8 +46,7 @@ My_Theme = theme(axis.title.x = element_text(size = 12,
 
 ##### 0.  Loading  data  ###############################
 
-df<-read.csv(file = "./analysis/input/ES_PT_demand_by_dist.csv",header=TRUE, sep = ",",dec=".")
-
+df<-read.csv(file = "analysis/input/ES_PT_demand_by_dist.csv",header=TRUE, sep = ",",dec=".")
 
 ##### 0.1.  Tyding up   =======================
 
@@ -83,7 +80,7 @@ dep_var = c("levels","logs","level pc","logs pc")[3]
 
 
 if(dep_var == "level pc" |dep_var == "logs pc" ){
-  df%>%mutate(consumption = demand / consumer *1000000)->df #dist
+  df%>%mutate(consumption = demand / consumer *1000)->df #dist
   
 }
 
@@ -134,12 +131,12 @@ df %>% filter (!is.na(temp) & !is.na(consumption)  )->df
 ##### 0.2.  create matrix with all possible interactions   =======================
 
 ## choose variables for lasso 
-
 year_dummy = c("yes","no")[2]
+
 
 if (year_dummy == "yes"){
   df%>% select(dist,
-               date,T_date,year,month,hour,country,consumption,temp,tempmin,tempmax,weekend,national_holiday
+               date,T_date,year,month,hour,country,month_count,consumption,temp,tempmin,tempmax,weekend,national_holiday
   )%>%
     dummy_cols(.,select_columns = c("year","month"))->df_lasso
   
@@ -159,7 +156,7 @@ if (year_dummy == "yes"){
   
 } else {
   df%>% select(dist,
-               date,T_date,year,month,hour,country,consumption,temp,tempmin,tempmax,
+               date,T_date,year,month,hour,country,month_count,consumption,temp,tempmin,tempmax,
                weekend,national_holiday
   )%>%
     dummy_cols(.,select_columns = c("month"))->df_lasso
@@ -195,17 +192,26 @@ for (i in (which(colnames(df_lasso)=="tempmax")+1):end){
 }
 #####
 
+### Default option is set to estimate the ML models. Otherwise select NO and move directly to Section 2
+
+run_model <- c("YES","NO")[1]
+
+if (run_model == "YES"){
+
 
 #########################################################################
 
-##### 1.  Lasso estimation with pre-treatment data ######################
+##### 1.  Estimation with pre-treatment data  ##########################
 
 #########################################################################
 
-##### 1.1 Estimation  ==========================
+
+##### 1.1  LASSO  ===============================
 # Be aware: cv.glmnet uses  random partitions for the cross validation process. Therefore:
 
 fix = c("set.seed","mode")[1]
+
+
 #mode repeats de cv process k times and selects the most common optimal lambda. It slows down the process
 
 #function to get the mode of the lambda vector
@@ -215,12 +221,13 @@ getmode <- function(v) {
 }
 
 
+
 Lambdas <- NULL
 df_pred <- NULL
 coef_data <- NULL
 
-for (i in 1:length(unique(df$hour))){
-  for (j in 1:length(unique(df$dist))){
+for (i in 1:length(unique(df_lasso$hour))){
+  for (j in 1:length(unique(df_lasso$dist))){
     
     # split samples
     df_ch = filter(df_lasso,dist==unique(dist)[j],hour == unique(hour)[i])
@@ -234,7 +241,7 @@ for (i in 1:length(unique(df$hour))){
     filter(df_ch, T_date == TRUE)%>%  select(temp:ncol(.))%>%
       as.matrix()-> Xpost
     
-    ##### 1.1.1 Get optimal lambda ---------------------------
+    #####  Get optimal lambda ####
     
     if (fix == "set.seed"){
       set.seed(12345)
@@ -277,13 +284,15 @@ for (i in 1:length(unique(df$hour))){
     
     Lambdas <-rbind(Lambdas,lambda_i)
     
-    ##### 1.1.2 Prediction ---------------------------
+    #####  Prediction ####
+    
     
     yhat_pre = predict(mod_cv,newx = Xdata,s=lambda_i[[3]]) #in-sample prediction
     yhat_post = predict(mod_cv,newx = Xpost,s=lambda_i[[3]]) #out-of-sample prediction
     
     data.frame(country = unique(df_ch$country),
                dist = unique(df_ch$dist),
+               method="LASSO",
                date = df_ch$date,year=df_ch$year, month=df_ch$month,hour = unique(df_ch$hour),Data=df_ch$consumption,Prediction = c(yhat_pre,yhat_post),
                In_sample = c(yhat_pre,rep(NA,length(yhat_post))),Out_of_sample = c(rep(NA,length(yhat_pre)),yhat_post))->df1
     
@@ -301,28 +310,116 @@ df_pred$date <- as.Date(df_pred$date)
 df_pred %>% arrange(date) -> df_pred
 
 
-df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred
-
-write.csv(x=df_pred, "./analysis/output/data/df_pred.csv", row.names = F)
+df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred_lasso
 
 
-##### 1.2 model fit ==========================
+##### 1.2 Random Forests  ==========================
 
-#checking models
-#df_pred<-read.csv(file = "01_time_of_use_impact/df_pred.csv",header=TRUE, sep = ",",dec=".")
+df_pred <- NULL
+imp <- NULL
+set.seed(12345)
+
+
+
+for (i in 1:length(unique(df$hour))){
+  for (j in 1:length(unique(df$dist))){
+    
+    # split samples
+    df_ch = filter(df_lasso,dist==unique(dist)[j],hour == unique(hour)[i])
+    df_pre = filter(df_ch, T_date == FALSE)
+    
+    df_pre%>%  select(temp:ncol(.))%>%
+      as.matrix()-> Xdata
+    
+    Y=df_pre$consumption
+    
+    filter(df_ch, T_date == TRUE)%>%  select(temp:ncol(.))%>%
+      as.matrix()-> Xpost
+    
+   
+     #####  Prediction ####
+    rf <- randomForest(x=Xdata, y=Y, proximity=TRUE,
+                       ntree=200,
+                       importance = TRUE) 
+    
+    
+    yhat_pre <- predict(rf, Xdata)
+    yhat_post <- predict(rf, Xpost)
+    
+    
+    data.frame(country = unique(df_ch$country),
+               dist = unique(df_ch$dist),
+               method="Random Forest",
+               date = df_ch$date,year=df_ch$year, month=df_ch$month,hour = unique(df_ch$hour),Data=df_ch$consumption,Prediction = c(yhat_pre,yhat_post),
+               In_sample = c(yhat_pre,rep(NA,length(yhat_post))),Out_of_sample = c(rep(NA,length(yhat_pre)),yhat_post))->df1
+    
+    df_pred <- rbind(df_pred,df1)
+    
+    ## importance measures
+    
+    imp_i<-importance(rf,type=1)
+    
+    imp <-cbind(imp,imp_i)
+    
+    
+  }
+}
+
+
 df_pred$date <- as.Date(df_pred$date)
+df_pred %>% arrange(date) -> df_pred
+
+
+df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred_rf
+
+
+#####
+
+
+df <- rbind(df_pred_lasso,df_pred_rf)
+
+
+write.csv(x=df, "./analysis/output/data/df_lasso_rf.csv", row.names = F)
+write.csv(x=coef_data, "./analysis/output/data/coef_data.csv", row.names = F)
+write.csv(x=imp, "./analysis/output/data/importance_rf.csv", row.names = F)
+
+
+} else {
+
+  
+  df<-read.csv(file = "analysis/output/data/df_lasso_rf.csv",header=TRUE, sep = ",",dec=".")
+  coef_data<-read.csv(file = "./analysis/output/data/coef_data.csv",header=TRUE, sep = ",",dec=".")
+  imp<-read.csv(file = "./analysis/output/data/importance_rf.csv",header=TRUE, sep = ",",dec=".")
+  
+  
+}
+#########################################################################
+
+##### 2.  Model diagnostics  ############################################
+
+#########################################################################
+
+
+##### 2.1 model fit ==========================
+
+df$date <- as.Date(df$date)
+
+df_pred <- df %>% 
+  filter(method=="LASSO")
 
 #plotting residuals
 
 df_pred%>%
+  filter(date<as.Date("2021-09-15")) %>%
+  #group_by(date,country,method)%>%
   group_by(date,country)%>%
-   summarise(cons_res=mean(cons_res,na.rm=TRUE))%>%
+  summarise(cons_res=mean(cons_res,na.rm=TRUE))%>%
   bind_rows(.,data.frame(date=seq(as.Date("2020-01-01"), as.Date("2020-02-15"), by="days"))) %>% 
   arrange(date)%>% 
   mutate(date_f = factor(date))%>% 
   ggplot(., aes(date_f,cons_res,color = as.factor(country)))+
   geom_point(size=0.6)+
-  ylab("Prediction errors (in logs)")+
+  ylab("Prediction error (in logs)")+
   xlab("")+
   theme(legend.position="bottom")+
   scale_colour_manual(name="",values = c(#"grey",
@@ -330,62 +427,89 @@ df_pred%>%
     labels=c("Spain","Portugal"),na.translate = F)+
   scale_x_discrete(breaks = c("2018-01-01","2018-07-01","2019-01-01","2019-07-01","2021-01-01","2021-06-01","2021-09-14")) +
   geom_vline(xintercept="2021-06-01", linetype = "solid", color = "red", size = 0.5)+
-  geom_vline(xintercept="2021-09-14", linetype = "solid", color = "red", size = 0.5)+
+  #geom_vline(xintercept="2021-09-14", linetype = "solid", color = "red", size = 0.5)+
   geom_vline(xintercept="2020-01-25", linetype = "solid", color = "grey", size = 4,alpha=0.7)+
   My_Theme + 
   theme(axis.text.x = element_text(size=9,angle = 45, hjust=1)) +
   guides(colour = guide_legend(override.aes = list(size=3)))
   
-ggsave(filename="prediction_error.png",path = "./analysis/output/figures", width = 6, height = 4, device='png', dpi=700)
 
+ggsave(filename="prediction_error.pdf",path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
+
+
+
+for (i in unique(df$country)){
+  
+df%>%
+  filter(date<as.Date("2021-09-15")) %>%
+  group_by(date,country,method)%>%
+  summarise(cons_res=mean(cons_res,na.rm=TRUE))%>%
+  bind_rows(.,data.frame(date=seq(as.Date("2020-01-01"), as.Date("2020-02-15"), by="days"))) %>% 
+  arrange(date)%>% 
+  mutate(date_f = factor(date))%>% 
+  filter(country==i)%>% 
+  ggplot(., aes(date_f,cons_res,color = as.factor(method)))+
+  geom_point(size=0.6)+
+  ylab("Prediction errors (in logs)")+
+  xlab("")+
+  theme(legend.position="bottom")+
+  scale_colour_manual(name="",values = c(#"grey",
+    "#00859B","goldenrod"),
+    labels=c("LASSO","Random Forests"),na.translate = F)+
+  scale_x_discrete(breaks = c("2018-01-01","2018-07-01","2019-01-01","2019-07-01","2021-01-01","2021-06-01","2021-09-14")) +
+  geom_vline(xintercept="2021-06-01", linetype = "solid", color = "red", size = 0.5)+
+  #geom_vline(xintercept="2021-09-14", linetype = "solid", color = "red", size = 0.5)+
+  geom_vline(xintercept="2020-01-25", linetype = "solid", color = "grey", size = 4,alpha=0.7)+
+  My_Theme + 
+  theme(axis.text.x = element_text(size=9,angle = 45, hjust=1)) +
+  guides(colour = guide_legend(override.aes = list(size=3)))
+  
+  ggsave(filename=paste0("method_com_",i,".pdf"),path = "./analysis/output/figures", width = 10, height = 7, device='pdf', dpi=700)
+  
+}
 
 # individual prediction
 
 for (i in unique(df_pred$dist)){
-  
-  df_pred %>% filter(dist == i)%>%
-    filter(date<as.Date("2021-11-01")) %>%
-    select(date,Data,In_sample,Out_of_sample)%>%
-    gather("id", "value", 2:4) %>%
-    group_by(date,id)%>%
-    summarise(value=mean(value,na.rm=TRUE))%>%
-    bind_rows(.,data.frame(date=seq(as.Date("2020-01-01"), as.Date("2020-02-15"), by="days"))) %>% 
-    arrange(date)%>% 
-    mutate(date_f = factor(date))%>% 
-    ggplot(., aes(date_f, value,color = as.factor(id)))+
-    geom_point(size=0.5)+
-    ylab("Consumption per capita (kWh)")+
-    #ylab("Consumption")+
-    xlab("")+
-    #labs( title = "Portugal - 11am") +
-    theme(legend.position="bottom")+
-    #theme(legend.title="")+
-    #labs(color='Year') +
-    #theme(legend.position = "none")+
-    scale_colour_manual(name="",values = c("grey","#00859B","goldenrod"),labels=c("Data","In sample","Out of Sample"),na.translate = F)+
-    scale_x_discrete(breaks = c("2018-01-01","2018-07-01","2019-01-01","2019-07-01","2021-01-01","2021-06-01","2021-09-14")) +
-    geom_vline(xintercept="2021-06-01", linetype = "solid", color = "red", size = 0.5)+
-    geom_vline(xintercept="2021-09-14", linetype = "solid", color = "red", size = 0.5)+
-    geom_vline(xintercept="2020-01-25", linetype = "solid", color = "grey", size = 4,alpha=0.7)+
-    My_Theme+
-    theme(axis.text.x = element_text(size=9,angle = 45, hjust=1)) +
-    guides(colour = guide_legend(override.aes = list(size=3)))
-  
-  
-  
-  ggsave(filename=paste0("prediction_",i,".png"),path = "./analysis/output/figures", width = 10, height = 7, device='png', dpi=700)
-  
-  
-  
-} 
-
-##### 1.3 Validity checks ==========================
+df_pred %>% filter(dist == i)%>%
+  filter(date<as.Date("2021-09-15")) %>% 
+  select(date,Data,In_sample,Out_of_sample) %>% 
+  bind_rows(.,data.frame(date=seq(as.Date("2020-01-01"), as.Date("2020-02-15"), by="days"))) %>% 
+  arrange(date)%>% 
+  gather("id", "value", 2:4) %>%
+  group_by(date,id)%>%
+  summarise(value=mean(value,na.rm=TRUE)) %>% 
+  mutate(date_f = factor(date)) %>%  
+  ggplot(., aes(date_f, value,color = as.factor(id)))+
+  geom_point(size=0.5)+
+  ylab("Household hourly consumption (kWh)")+
+  #ylab("Consumption")+
+  xlab("")+
+  #labs( title = "Portugal - 11am") +
+  theme(legend.position="bottom")+
+  #theme(legend.title="")+
+  #labs(color='Year') +
+  #theme(legend.position = "none")+
+  scale_colour_manual(name="",values = c("grey","#00859B","goldenrod"))+
+  scale_x_discrete(breaks = c("2018-01-01","2018-07-01","2019-01-01","2019-07-01","2021-01-01","2021-06-01","2021-09-14")) +
+  geom_vline(xintercept="2020-01-25", linetype = "solid", color = "grey", size = 10,alpha=0.7)+
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+  My_Theme
 
 
-#fraction of models selecting variable type
+ggsave(filename=paste0("prediction_",i,".pdf"),path = "./analysis/output/figures", width = 10, height = 7, device='pdf', dpi=700)
+
+}
+
+
+##### 2.2 Validity checks ==========================
+
+
+### LASSO: fraction of models selecting variable type
+
 coef_data %<>% mutate(country = ifelse(dist == "PT_reg","PT","ES"))
 
-
+#Relevant controls
 coef_data %>%  
   filter(variable %in% c("intercept","temp","tempmax","tempmin","national_holiday","weekend")) %>% 
   group_by(country) %>% 
@@ -398,8 +522,10 @@ coef_data %>%
   scale_fill_manual(values=c(  "#00859B","goldenrod")) +
   scale_y_continuous(breaks=seq(-1,1,0.25),labels=abs(seq(-1,1,0.25)))
 
-ggsave(filename="fraction_main_coef.png",path = "./analysis/output/figures", width = 6, height = 4, device='png', dpi=700)
+ggsave(filename="fraction_main_coef.pdf",path = "./analysis/output/figures", width = 10, height = 7, device='pdf', dpi=700)
 
+
+#Relevant months
 coef_data %>% 
   filter(variable %in% paste("month",seq(1,12,1),sep="_")) %>% 
   group_by(country) %>% 
@@ -414,8 +540,31 @@ coef_data %>%
   labs(title="",x="month", y = "Fraction")+
   My_Theme
 
+ggsave(filename="fraction_month.pdf",path = "./analysis/output/figures", width = 10, height = 7, device='pdf', dpi=700)
 
-ggsave(filename="fraction_month.png",path = "./analysis/output/figures", width = 6, height = 4, device='png', dpi=700)
+### RF: importance
 
+df_lasso%>%  select(temp:ncol(.))-> Xdata
+
+imp %>% 
+  mutate(var = colnames(Xdata) ,
+         mean_MSE = rowMeans(imp[,1:(ncol(imp)-1)])) %>% 
+  select(var,mean_MSE) %>%
+  filter(var %in%  c("temp","tempmax","tempmin","national_holiday","weekend",
+                     paste("month",seq(1,12,1),sep="_"))) %>% 
+  arrange(desc(mean_MSE))-> imp_var
+
+
+imp_var %>%   
+  mutate(var = fct_reorder(var, mean_MSE)) %>%
+  ggplot( aes(x = var, y = mean_MSE)) +   # Fill column
+  geom_bar(stat = "identity", width = .3, color="black",fill=  "#00859B", alpha=0.6,)+    # draw the bars
+  coord_flip()  + 
+  labs(title="",y=" % increase in MSE", x = "Variable")+
+  My_Theme
+
+  
+
+ggsave(filename="importance_rf.pdf",path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
 
 

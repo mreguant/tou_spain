@@ -21,6 +21,25 @@ if !endswith(pwd(), "tou_spain")
     cd(dirname(dirname(@__DIR__)))
 end
 
+###!! User path -- change
+
+user = splitdir(homedir())[end]
+
+if user == "JacintE"
+    # Jacint - Personal computer
+    global shared_drive_path = "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+else
+    # BSE computers ("Jacint Enrich" / "Ruoyi Li")
+    global shared_drive_path = "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+end
+
+cd(string(shared_drive_path))
+
+## !! ----------------
+
+
+
+
 # 1. SPAIN DEMAND AND CONSUMERS BY DISTRIBUTORS 
 #__________________________________________________________________________________________________________________________________________
 
@@ -75,19 +94,9 @@ es = leftjoin(demand_es,cons_es,on=[:year,:month,:dist=>:group])
 # A) Demand data 
 ####################################################
 
-# # Read original DTA file
-# df = load("00_raw_data_sources/OMIE/data_aggregate_iberian_market_mar22.dta") |> DataFrame
-# show(describe(df), allrows = true)
-# # Filter desired time range 
-# filter!(row -> row.year > 2017, df)
-# # Save to CSV to read better
-# CSV.write("00_raw_data_sources/OMIE/data_aggregate_iberian_market_mar22.csv", df)
-
-# Read filtered CSV
-#df = CSV.read("00_raw_data_sources/OMIE/data_aggregate_iberian_market_2022.csv", DataFrame)
 
 # Load data
-df0 = CSV.read("build/input/data_aggregate_iberian_market_mar22.csv", 
+df0 = CSV.read("build/input/4_create_ES_PT_demand_by_dist/data_aggregate_iberian_market_mar22.csv", 
     DataFrame, missingstring=["NA", ""]
 )
 #show(describe(df0), allrows = true)
@@ -126,12 +135,13 @@ df_wide[:, :check] = df_wide.consumption_251 .+ df_wide.consumption_51 .- df_wid
 demand_pt0 = select(df_wide, :date,:year,:month,:day,:hour, :consumption_221, :consumption_222, :consumption_251)
 
 rename!(demand_pt0, names(demand_pt0)[startswith.(names(demand_pt0),"consumption")] .=> [:commercial_demand, :PT_reg, :PT_total])
-# there is no direct consumption in PT !!!!
+# there is no direct consumption in PT 
+
 demand_pt0.direct_consumption_demand = demand_pt0.PT_total .- demand_pt0.commercial_demand .- demand_pt0.PT_reg
 
 # a) Adding temperature 
 
-df_PT_temp = CSV.read("build/input/PTtemp.csv", DataFrame)
+df_PT_temp = CSV.read("build/input/4_create_ES_PT_demand_by_dist/PTtemp.csv", DataFrame)
 rename!(df_PT_temp, :dateES => :date, :hourES => :hour)
 df_PT_temp.date = Date.(df_PT_temp.date)
 df_PT_temp.day = day.(df_PT_temp.date)
@@ -144,7 +154,6 @@ df_PT_temp.match = string.(df_PT_temp.date,df_PT_temp.hour)
 #Join
 demand_pt =  leftjoin(demand_pt0,select(df_PT_temp,:temp,:date,:hour),on=[:date,:hour])
 
-#show(describe(demand_pt), allrows = true)
 # temperature data finish in Feb 2022 and have around 3 missing per year (2021-2009)*3 = 36 ~ 40
 #sum(ismissing.(demand_pt[demand_pt.date .< Date(2022,2,1),:temp]))
 #check=demand_pt[ismissing.(demand_pt.temp),[:date,:hour,:temp]]
@@ -201,18 +210,13 @@ df_week[:,"week_count"] = counter
 select!(df_week,[:date,:week_count])
 es_pt = leftjoin(es_pt,df_week,on=[:date])
 
-# Check
-#check = filter(row->(row.hour==8).&(row.dist=="EDP").&(row.year==2020),es_pt)
-#plot(check.date,check.week_count,seriestype=:scatter)
-
-
 
 
 # 4. ADD GOOGLE TRENDS
 #__________________________________________________________________________________________________________________________________________
 
 # Load data
-gt = CSV.read("build/input/gtrends_dist_long.csv",DataFrame)
+gt = CSV.read("build/input/4_create_ES_PT_demand_by_dist/gtrends_dist_long.csv",DataFrame)
 select!(gt,Not(:pop))
 
 #extrema(gt.date)
@@ -220,9 +224,6 @@ select!(gt,Not(:pop))
 # Combine
 df_gtrends = leftjoin(es_pt,gt,on=[:date,:dist])
 
-# Check
-#check = filter(row->(row.hour==1)&(row.dist=="ENDESA"),df_gtrends)
-#select!(check,:date,:index,:index_w)
 
 # Complete every day of the week with corresponding gt data: Starts at Sunday and finishes at Saturday 
 sort!(df_gtrends, [:dist, :date])
@@ -244,7 +245,7 @@ df_gtrends[df_gtrends.date .>= Date(2021,11,1), :index_w] .= missing
 # 5. Create time variables
 #__________________________________________________________________________________________________________________________________________
 
-nh = CSV.read("build/input/national_holidays.csv", DataFrame)
+nh = CSV.read("build/input/4_create_ES_PT_demand_by_dist/national_holidays.csv", DataFrame)
 nh[:, :national_holiday] .= true
 df_final = leftjoin(df_gtrends, nh, on = [:year, :month, :day, :country])
 replace!(df_final.national_holiday, missing => false)
@@ -265,15 +266,6 @@ df_final.quarter = quarterofyear.(df_final.date)
 df_save = select!(df_final,[:date,:quarter,:country,:dist,:year,:month,:day,:hour,:dayofweek,
         :weekend,:week, :national_holiday,:demand,:consumer,:temp, :index, :index_w,:month_count,:week_count]
 )
-
-#show(describe(df_save), allrows = true)
-#extrema(df_save.date[.!(ismissing.(df_save.consumer))])
-#extrema(df_save.date[.!(ismissing.(df_save.index_w))])
-
-# Check for temperature 
-#check = dropmissing(df_save,:temp)
-#filter!(row->row.date <= Date(2021,9,30),check)
-#minimum(check.temp[(check.country.=="PT")])
 
 
 CSV.write("analysis/input/ES_PT_demand_by_dist.csv", df_save)
