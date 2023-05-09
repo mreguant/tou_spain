@@ -109,6 +109,17 @@ prices.charges = ifelse.(prices.date .< Date(2021,6,1), prices.charges_0, prices
 
 df = leftjoin(prices, demand1,on=[:date, :year, :hour])
 
+# regulated prices for Portugal
+df[:,"price_PT"] = ifelse.((df.year.== 2018),53.8,
+                        ifelse.( (df.year.== 2019),65.5,
+                        ifelse.( (df.year.== 2020) .& (df.month .< 7) ,61.3,
+                        ifelse.( (df.year.== 2020) .& (df.month .> 6) ,45,
+                        ifelse.( (df.year.== 2021) .& (df.month .< 7) ,49.5,
+                        ifelse.( (df.year.== 2021) .& (df.month .> 6) ,54.5,
+                        missing))))))
+
+
+
 df.policy = df.date .> Date(2021,6,1)
 df.energy_cost = df.total_price .- df.charges
 
@@ -118,18 +129,21 @@ filter!(row ->row.day_week <= 5 ,df)
 
 # A) Price plot
 df_month = combine(groupby(df,[:year,:month1, :hour]), 
-                        [:demand,:total_price, :charges, :energy_cost] => ((d, p, c,e) ->
+                        [:demand,:total_price, :charges, :energy_cost,:price_PT] => ((d, p, c,e,pt) ->
                         (total_price = (sum(p.* d) / sum(d)),
                         charges = (sum(c.* d) / sum(d)),
-                        energy_cost = (sum(e.* d) / sum(d)))) => [:total_price, :charges,:energy_cost]
+                        energy_cost = (sum(e.* d) / sum(d)),
+                        price_PT = (sum(pt.* d) / sum(d)))) => [:total_price, :charges,:energy_cost,:price_PT]
 )
 
 
 df_month.date = Date.(df_month.year,df_month.month1,df_month.hour)
 
+
 prices_plot=plot(df_month.date, df_month.total_price,linewidth=1.5,label="Total price")
 plot!(df_month.date, df_month.charges,linewidth=1.5,label="Charges") 
 plot!(df_month.date, df_month.energy_cost,linewidth=1.5,label="Energy cost") 
+plot!(df_month.date, df_month.price_PT,linewidth=1.5,label="Portugal price") 
 plot!(xticks = ([Date(2018,1,01),Date(2018,06,01),Date(2019,1,1),Date(2019,06,01),Date(2020,01,01),Date(2020,06,01),Date(2021,01,01),Date(2021,06,01)],
 ["2018-01","2018-06","2019-01","2019-06","2020-01","2020-06","2021-01","2021-06"]),
 yticks=([0,50,100,150,200,250],["0","50","100","150","200","250"]),
@@ -139,7 +153,7 @@ yticks=([0,50,100,150,200,250],["0","50","100","150","200","250"]),
  plot!([Date(2021,06,01),Date(2021,10,01)], seriestype="vline",color=:black,label="")
 
 
-savefig(prices_plot, string("analysis/output/figures/price_decomposition.pdf"))
+#savefig(prices_plot, string("analysis/output/figures/price_decomposition_PT.pdf"))
 
 
 

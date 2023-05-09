@@ -194,7 +194,10 @@ for (i in (which(colnames(df_lasso)=="tempmax")+1):end){
 
 ### Default option is set to estimate the ML models. Otherwise select NO and move directly to Section 2
 
-run_model <- c("YES","NO")[1]
+#keep initial dataframe:
+df_baseline <- df
+
+run_model <- c("YES","NO")[2]
 
 if (run_model == "YES"){
 
@@ -407,10 +410,11 @@ df$date <- as.Date(df$date)
 df_pred <- df %>% 
   filter(method=="LASSO")
 
+df_pred <-left_join(df_pred,df_baseline)
 #plotting residuals
 
 df_pred%>%
-  filter(date<as.Date("2021-09-15")) %>%
+  filter(date<as.Date("2021-09-15")) %>% 
   #group_by(date,country,method)%>%
   group_by(date,country)%>%
   summarise(cons_res=mean(cons_res,na.rm=TRUE))%>%
@@ -434,9 +438,44 @@ df_pred%>%
   guides(colour = guide_legend(override.aes = list(size=3)))
   
 
-ggsave(filename="prediction_error.pdf",path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
+#ggsave(filename="prediction_error.pdf",path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
 
 
+## By TOU periods
+
+
+for (i in unique(df_pred$tou)){
+  
+  df_pred %>% filter(tou == unique(df_pred$tou)[i])%>%
+    filter(date<as.Date("2021-09-15")) %>% 
+    group_by(date,country)%>%
+    summarise(cons_res=mean(cons_res,na.rm=TRUE))%>%
+    bind_rows(.,data.frame(date=seq(as.Date("2020-01-01"), as.Date("2020-02-15"), by="days"))) %>% 
+    arrange(date)%>% 
+    mutate(date_f = factor(date))%>% 
+    ggplot(., aes(date_f,cons_res,color = as.factor(country)))+
+    geom_point(size=0.6)+
+    ylab("Prediction error (in logs)")+
+    xlab("")+
+    theme(legend.position="bottom")+
+    scale_colour_manual(name="",values = c(#"grey",
+      "#00859B","goldenrod"),
+      labels=c("Spain","Portugal"),na.translate = F)+
+    scale_x_discrete(breaks = c("2018-01-01","2018-07-01","2019-01-01","2019-07-01","2021-01-01","2021-06-01","2021-09-14")) +
+    geom_vline(xintercept="2021-06-01", linetype = "solid", color = "red", size = 0.5)+
+    #geom_vline(xintercept="2021-09-14", linetype = "solid", color = "red", size = 0.5)+
+    geom_vline(xintercept="2020-01-25", linetype = "solid", color = "grey", size = 4,alpha=0.7)+
+    My_Theme + 
+    theme(axis.text.x = element_text(size=9,angle = 45, hjust=1)) +
+    guides(colour = guide_legend(override.aes = list(size=3)))
+  
+  
+    
+   ggsave(filename=paste0("prediction_tou",i,".pdf"),path = "./analysis/output/figures", width = 10, height = 7, device='pdf', dpi=700)
+  
+}  
+    
+## By country
 
 for (i in unique(df$country)){
   
@@ -468,7 +507,7 @@ df%>%
   
 }
 
-# individual prediction
+# By firm
 
 for (i in unique(df_pred$dist)){
 df_pred %>% filter(dist == i)%>%

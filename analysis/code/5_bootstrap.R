@@ -569,7 +569,7 @@ Nboot.fun(Nboot,df_b)
 coef_data <- NULL
 for (i in seq(100,1000,100)){
   
-  results_td<-readRDS(paste0("G:/La meva unitat/projects/ToU/outcome/tables/bootstrap/results_td/results_td_",i,".RData"))
+  results_td<-readRDS(paste0("H:/La meva unitat/projects/ToU/outcome/tables/bootstrap/results_td/results_td_",i,".RData"))
   coef_data_td <- results_td[[1]]
   
   coef_data <- rbind(coef_data,coef_data_td) 
@@ -582,8 +582,8 @@ coef_mean <- coef_data %>%
 
 
 #implied SE
-# coef_data %>% 
-#   group_by(policy, tou_period,week) %>% 
+# coef_data %>%
+#   group_by(policy, tou_period,week) %>%
 #   summarise(std.error=sd(coef))
 
 
@@ -662,10 +662,11 @@ coef_data %>%
   theme(axis.text.x =element_text(angle=45,vjust = 0.5))
         
 
-ggsave(filename=paste0("boot_td_policy_",i,"_week_",j,".pdf"),path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
+#ggsave(filename=paste0("boot_td_policy_",i,"_week_",j,".pdf"),path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
 
 
 
 
 }
 }
+

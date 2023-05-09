@@ -21,6 +21,7 @@ using RegressionTables
 using Suppressor 
 using Printf
 using Distributions
+using StatsBase
 
 # Setting working directory 
 if !endswith(pwd(), "tou_spain")
@@ -206,6 +207,9 @@ model_did4 = reg(df_subset, @formula(log_demand_cp ~
 )
 
 models_did = [model_did1,model_did2,model_did3,model_did4]
+
+
+
 
 tabular_header_fe = """\\begin{tabular*}{\\textwidth}{l @{\\extracolsep{\\fill}} rrrr} 
                     \\toprule   
@@ -1287,6 +1291,37 @@ fe(month_count)*fe(hour) ), weights = :consumer,
 )
 
 
+
+##### Non-constant price elasticities ###
+
+df_reg.rtp = df_reg.total_price .- df_reg.charges
+
+df_s = filter(row->row.country == "ES" && row.policy == 1  ,df_reg)
+
+
+
+
+
+model_iv_fe = reg(filter(row -> row.country=="PT" || row.policy==0 || 
+(row.policy == 1 && row.rtp > percentile(df_s.rtp, 25) &&  row.rtp <= percentile(df_s.rtp, 75)),df_reg)
+, @formula(log_demand_cp ~
+    (log_price ~ log_tou) +
+    temp*temph +
+    fe(dist)*fe(month)*fe(hour) + fe(dist)*fe(year)*fe(hour) +
+    fe(month_count)*fe(hour) ), weights = :consumer,
+    Vcov.cluster(:dist,:month)
+)
+
+
+
+
+
+#################################
+
+
+
+
+
 models_elas = [model_ols_fe,model_iv_fe,model_ols_lasso,model_iv_lasso,f_stage]
 
 tabular_fe = """\\midrule 
@@ -1414,7 +1449,6 @@ open(string.("analysis/output/tables/elasticity.tex"),"w") do io
 end 
 
 
-#################################
 
 
 # Create table
