@@ -1231,15 +1231,23 @@ df_reg[:,"total_price"] = ifelse.((df_reg.country .== "PT") .& (df_reg.year.== 2
                         df_reg.total_price))))))
 
 
-df_reg[:,"tou_int"] = ifelse.(df_reg.policy .== 0, "0", df_reg.tou_real)
+#Create variables
 df_reg.log_price = log.(df_reg.total_price)
-df_reg.log_price_ES = ifelse.(df_reg.country .== "ES",df_reg.log_price,0)
-df_reg.log_price_PT = ifelse.(df_reg.country .== "PT",df_reg.log_price,0)
+df_reg.rtp = df_reg.total_price .- df_reg.charges
+
+#Possible IV
+#df_reg[:,"tou_int"] = ifelse.(df_reg.policy .== 0, "0", df_reg.tou_real)
+#df_reg.log_price_ES = ifelse.(df_reg.country .== "ES",df_reg.log_price,0)
+#df_reg.log_price_PT = ifelse.(df_reg.country .== "PT",df_reg.log_price,0)
 #df_reg.log_price_gas = log.(parse.(Float64,df_reg.p_gas))
 #df_reg.log_pgas_ES = ifelse.(df_reg.country .== "ES",df_reg.log_price_gas,0)
+
+# Selected IV
 df_reg.log_tou = ifelse.(df_reg.country .== "ES",log.(df_reg.charges),0)
 
-
+#including the mean of energy costs prior to the policy
+pe_mean = mean(skipmissing(df_reg.rtp[(df_reg.country .== "ES") .&(df_reg.policy .== 0 )]))
+df_reg.log_tou_pe = ifelse.(df_reg.country .== "ES",log.(pe_mean .+ df_reg.charges),0)
 
 
 model_ols_fe = reg(df_reg, @formula(log_demand_cp ~
@@ -1263,7 +1271,7 @@ model_ols_lasso = reg(df_reg, @formula( cons_res_lasso ~
 )
 
 model_iv_fe = reg(df_reg, @formula(log_demand_cp ~
-    (log_price ~ log_tou) +
+    (log_price ~ log_tou_pe) +
     temp*temph +
     fe(dist)*fe(month)*fe(hour) + fe(dist)*fe(year)*fe(hour) +
     fe(month_count)*fe(hour) ), weights = :consumer,
@@ -1272,7 +1280,7 @@ model_iv_fe = reg(df_reg, @formula(log_demand_cp ~
 
 
 model_iv_lasso = reg(df_reg, @formula(cons_res_lasso ~
-    (log_price ~ log_tou) +
+    (log_price ~ log_tou_pe ) +
     temp*temph +
     fe(dist)*fe(month)*fe(hour) + fe(dist)*fe(year)*fe(hour) +
     fe(month_count)*fe(hour) ), weights = :consumer,
@@ -1283,7 +1291,7 @@ model_iv_lasso = reg(df_reg, @formula(cons_res_lasso ~
 
 
 f_stage = reg(df_reg, @formula(log_price ~
-log_tou + 
+log_tou_pe + 
 temp*temph +
 fe(dist)*fe(month)*fe(hour) + fe(dist)*fe(year)*fe(hour) +
 fe(month_count)*fe(hour) ), weights = :consumer,
@@ -1291,63 +1299,121 @@ fe(month_count)*fe(hour) ), weights = :consumer,
 )
 
 
+models_elas = [model_ols_fe,model_iv_fe,model_ols_lasso,model_iv_lasso,f_stage]
 
 ##### Non-constant price elasticities ###
 
-df_reg.rtp = df_reg.total_price .- df_reg.charges
 
+# splitting sample according to rtp
+ #=
 df_s = filter(row->row.country == "ES" && row.policy == 1  ,df_reg)
 
+ j = 0
+model_split_fe = []
+model_split_lasso = []
+model_f_stage = []
 
+for i in [25,75,90,100]
+    data = filter(row -> row.country=="PT" || row.policy==0 || 
+    (row.policy == 1 && row.rtp > percentile(df_s.rtp, j) &&  row.rtp <= percentile(df_s.rtp, i)),df_reg)
 
-
-
-model_iv_fe = reg(filter(row -> row.country=="PT" || row.policy==0 || 
-(row.policy == 1 && row.rtp > percentile(df_s.rtp, 25) &&  row.rtp <= percentile(df_s.rtp, 75)),df_reg)
-, @formula(log_demand_cp ~
+    model_s_fe = reg(data, @formula(log_demand_cp ~
     (log_price ~ log_tou) +
     temp*temph +
     fe(dist)*fe(month)*fe(hour) + fe(dist)*fe(year)*fe(hour) +
     fe(month_count)*fe(hour) ), weights = :consumer,
-    Vcov.cluster(:dist,:month)
-)
+    Vcov.cluster(:dist,:month))
+
+    push!(model_split_fe, model_s_fe)
 
 
+    model_s_lasso = reg(data, @formula(cons_res_lasso ~
+    (log_price ~ log_tou) +
+    temp*temph +
+    fe(dist)*fe(month)*fe(hour) + fe(dist)*fe(year)*fe(hour) +
+    fe(month_count)*fe(hour) ), weights = :consumer,
+    Vcov.cluster(:dist,:month))
 
+    push!(model_split_lasso, model_s_lasso)
+
+
+    f_stage_s = reg(data, @formula(log_price ~
+    log_tou + 
+    temp*temph +
+    fe(dist)*fe(month)*fe(hour) + fe(dist)*fe(year)*fe(hour) +
+    fe(month_count)*fe(hour) ), weights = :consumer,
+        Vcov.cluster(:dist,:month)
+    )
+    
+    push!(model_f_stage, f_stage_s)
+
+
+    j = i
+end
+
+model_split_lasso
+model_f_stage
+
+=#
+
+# splitting sample according to daily average rtp
+
+df_ave = leftjoin(df_reg,
+combine(groupby(df_reg, [:date,:country]), [:rtp] .=> mean .=> [:rtp_mean]),
+on=[:date,:country])
+
+df_s = filter(row->row.country == "ES" && row.policy == 1  ,df_ave)
+
+j = 0
+model_split_fe = []
+model_split_lasso = []
+model_f_stage = []
+    
+    for i in [25,75,90,100]
+        data = filter(row -> row.country=="PT" || row.policy==0 || 
+       (row.policy == 1 && row.rtp_mean > percentile(df_s.rtp_mean, j) &&  row.rtp_mean <= percentile(df_s.rtp_mean, i)),df_ave)
+
+        model_s_fe = reg(data, @formula(log_demand_cp ~
+        (log_price ~ log_tou_pe) +
+        temp*temph +
+        fe(dist)*fe(month)*fe(hour) + fe(dist)*fe(year)*fe(hour) +
+        fe(month_count)*fe(hour) ), weights = :consumer,
+        Vcov.cluster(:dist,:month))
+    
+        push!(model_split_fe, model_s_fe)
+    
+    
+        model_s_lasso = reg(data, @formula(cons_res_lasso ~
+        (log_price ~ log_tou_pe) +
+        temp*temph +
+        fe(dist)*fe(month)*fe(hour) + fe(dist)*fe(year)*fe(hour) +
+        fe(month_count)*fe(hour) ), weights = :consumer,
+        Vcov.cluster(:dist,:month))
+    
+        push!(model_split_lasso, model_s_lasso)
+    
+    
+        f_stage_s = reg(data, @formula(log_price ~
+        log_tou_pe + 
+        temp*temph +
+        fe(dist)*fe(month)*fe(hour) + fe(dist)*fe(year)*fe(hour) +
+        fe(month_count)*fe(hour) ), weights = :consumer,
+            Vcov.cluster(:dist,:month)
+        )
+        
+        push!(model_f_stage, f_stage_s)
+    
+    
+        j = i
+    end
+    
+    model_split_lasso
+    model_f_stage
 
 
 #################################
 
-
-
-
-
-models_elas = [model_ols_fe,model_iv_fe,model_ols_lasso,model_iv_lasso,f_stage]
-
-tabular_fe = """\\midrule 
-                Firm-Month-TOU-Hour      &     Yes &     Yes &     Yes &     Yes \\\\ 
-                Firm-Year-TOU-Hour       &     Yes    &     Yes &    Yes     &     Yes \\\\  
-                Month of sample-TOU-Hour &      Yes   &   Yes      &     Yes &     Yes \\\\
-                \\midrule"""
-
-
-                
-function tabular_bottom(df_n = df_n, df_r2 = df_r2)
-    # row is subset, col is specification
-    string.("\$N\$ &", df_n[1],"&", df_n[2],"&", df_n[3],"&", df_n[4],"\\\\") *
-    string.("\nAdjusted \$R^2\$ &", df_r2[1],"&", df_r2[2],"&", df_r2[3],"&", df_r2[4],"\\\\") *
-    "\n\\bottomrule \n\\end{tabular*}"  
-end 
-
-
-tabular_header = """\\begin{tabular*}{\\textwidth}{l @{\\extracolsep{\\fill}} rrrr} 
-                    \\toprule   
-                    & \\multicolumn{2}{c}{ Demand per capita }& \\multicolumn{2}{c}{ Prediction error } \\\\    
-                    \\cmidrule(lr){2-3} \\cmidrule(lr){4-5}   
-                    &     OLS &   IV & OLS &  IV \\\\  
-                    \\midrule"""
-
-
+models_t = vcat(models_elas, model_split_fe, model_split_lasso)
 
 # Store coefficients
 
@@ -1355,8 +1421,8 @@ df_coef_all = DataFrame()
 df_se_all = DataFrame()
 df_n_all = []
 df_r2_all = []
-for spe in 1:5
-    model = models_elas[spe]
+for spe in 1:13
+    model = models_t[spe]
     # coefficients
     coefs = coef(model)[occursin.(r"log_price|log_tou", coefnames(model))]
     # standard error
@@ -1380,7 +1446,7 @@ for spe in 1:5
     
     # observations 
    
-     df_coef_all[:,string("spe",spe)] = coefs
+    df_coef_all[:,string("spe",spe)] = coefs
     df_se_all[:,string("spe",spe)] = se
     append!(df_n_all, nobs(model))
     append!(df_r2_all, adjr2(model))
@@ -1388,8 +1454,8 @@ end
 
 df_n=df_n_all[1:4]
 df_r2=df_r2_all[1:4]
-df_coef=df_coef_all[:,1:4]
-df_se=df_se_all[:,1:4]
+df_coef=df_coef_all[:,1:13]
+df_se=df_se_all[:,1:13]
 
 df_n = commas.(df_n)
 df_r2 = Printf.format.(Ref(Printf.Format("%.3f")), df_r2)
@@ -1398,14 +1464,87 @@ df_r2 = Printf.format.(Ref(Printf.Format("%.3f")), df_r2)
 # Formatting se
 
 df_cs = [df_coef;df_se]
-df_cs[:,:name] .= ["Electricity price ",""]
-df_cs[:, :string] .= string.(df_cs.name,"&",df_cs.spe1,"&",df_cs.spe2,"&",df_cs.spe3,"&",df_cs.spe4,s"\\\\")
+df_cs[:,:empty] .= ["",""]
+
+
+df_full = string.(["Electricity price ",""],"&",df_cs.spe1,"&",df_cs.spe2,"&",df_cs.empty,"&",df_cs.spe3,"&",df_cs.spe4,"&",df_cs.empty,s"\\\\")
+df_first = string.(["TOU tariff ",""],"&",df_cs.empty,"&",df_cs.spe5,"&",df_cs.empty,"&",df_cs.empty,"&",df_cs.spe5,"&",df_cs.empty,s"\\\\")
+df_split_1 = string.(["\$<\$25th ",""],"&",df_cs.empty,"&",df_cs.empty,"&",df_cs.spe6,"&",df_cs.empty,"&",df_cs.empty,"&",df_cs.spe10   ,s"\\\\")
+df_split_2 = string.(["25 - 75th ",""],"&",df_cs.empty,"&",df_cs.empty,"&",df_cs.spe7,"&",df_cs.empty,"&",df_cs.empty,"&",df_cs.spe11   ,s"\\\\")
+df_split_3 = string.(["75 - 90th ",""],"&",df_cs.empty,"&",df_cs.empty,"&",df_cs.spe8,"&",df_cs.empty,"&",df_cs.empty,"&",df_cs.spe12   ,s"\\\\")
+df_split_4 = string.(["\$>\$90th ",""],"&",df_cs.empty,"&",df_cs.empty,"&",df_cs.spe9,"&",df_cs.empty,"&",df_cs.empty,"&",df_cs.spe13   ,s"\\\\")
+
+tabular_fe = """\\cmidrule(lr){1-7} 
+                Firm-Month-TOU-Hour      &     Yes &     Yes &     Yes &     Yes &     Yes &     Yes \\\\ 
+                Firm-Year-TOU-Hour       &     Yes    &     Yes &    Yes     &     Yes &     Yes &     Yes\\\\  
+                Month of sample-TOU-Hour &      Yes   &   Yes      &     Yes &     Yes &     Yes &     Yes\\\\
+                \\cmidrule(lr){1-7}"""
+
+
+                
+function tabular_bottom(df_n = df_n, df_r2 = df_r2)
+    # row is subset, col is specification
+    string.("\$N\$ &", df_n[1],"&", df_n[2],"& - &", df_n[3],"&", df_n[4],"& - ","\\\\") *
+    string.("\nAdjusted \$R^2\$ &", df_r2[1],"& ", df_r2[2],"&- &", df_r2[3],"&", df_r2[4],"& - ","\\\\") *
+    "\n\\cmidrule(lr){1-7} \n\\end{tabular*}"  
+end 
+
+
+tabular_header = """\\begin{tabular*}{\\textwidth}{l @{\\extracolsep{\\fill}} lccccc} 
+                    \\cmidrule(lr){1-7}   
+                    & \\multicolumn{3}{c}{ Demand per capita }& \\multicolumn{3}{c}{ Prediction error } \\\\    
+                    \\cmidrule(lr){2-4} \\cmidrule(lr){5-7}   
+                    \\textbf{Panel A. Full sample} &     OLS &  IV & IV &  OLS &  IV & IV  \\\\  
+                    \\cmidrule(lr){1-7} """
+
+
+                    
+output = @capture_out begin
+    println(s"\documentclass{article}")
+    println(s"\usepackage{booktabs}")
+    println(s"\usepackage{float}")
+    println(s"\begin{document}")
+    println(s"\pagenumbering{gobble}") # suppress page numbering
+    println(s"\renewcommand{\arraystretch}{1.1}") # add space between row
+
+    println(s"\begin{table}[h] \centering")
+    println(s"\caption{\textbf{Elasticity Estimates}}")
+    println(tabular_header)
+    println(join(df_full,"\n"))
+    println(s"\multicolumn{7}{l}{\textbf{First stage}}\\\\")
+    println(join(df_first,"\n"))
+    println("""\\multicolumn{7}{l}{\\textbf{Panel B. Split sample}}\\\\  
+    \\cmidrule(lr){1-7}""")
+    println(join(df_split_1,"\n"))
+    println(join(df_split_2,"\n"))
+    println(join(df_split_3,"\n"))
+    println(join(df_split_4,"\n"))
+    println(tabular_fe)
+    println(tabular_bottom(df_n, df_r2))
+    println(s"\end{table}")
+    #end document 
+    println(s"\end{document}")
+end
+
+
+
+
+# Write LATEX
+open(string.("analysis/output/tables/elasticity_split.tex"),"w") do io
+    println(io,output)
+end 
+
+
+#=
+df_cs[:,:name] .= ["Elec ",""]
+df_cs[:, :string] .= string.(df_cs.name,"&",df_cs.spe1,"&",df_cs.spe2,"&",df_cs.empty,"&",df_cs.spe3,"&",df_cs.spe4,"&",df_cs.empty,s"\\\\")
 
 df_first = vcat(DataFrame(spe1 = "", spe2=df_coef_all[!,5],spe3="",spe4=df_coef_all[!,5]),
                 DataFrame(spe1 = "", spe2=df_se_all[!,5],spe3="",spe4=df_se_all[!,5])  )
 df_first[:,:name] .= ["TOU tariff ",""]
-df_first[:, :string] .= string.(df_first.name,"&",df_first.spe1,"&",df_first.spe2,"&",df_first.spe3,"&",df_first.spe4,s"\\\\")
-                
+df_first[:,:empty] .= ["",""]
+
+df_first[:, :string] .= string.(df_first.name,"&",df_first.spe1,"&",df_first.spe2,"&",df_first.empty,"&",df_first.spe3,"&",df_first.spe4,"&",df_first.empty,s"\\\\")
 
 # Collapse rows together so that we have 1 string for every subset  
 strings1 = DataFrame()
@@ -1418,7 +1557,7 @@ chunk = join(df_first[:,:string],"\n")
 df_chunk = DataFrame(chunk=chunk) # every row is 1 subset 
 append!(strings2,df_chunk)
 
-
+ 
 # Create table
 output = @capture_out begin
     println(s"\documentclass{article}")
@@ -1440,44 +1579,11 @@ output = @capture_out begin
     #end document 
     println(s"\end{document}")
 end
-
-
-
-# Write LATEX
-open(string.("analysis/output/tables/elasticity.tex"),"w") do io
-    println(io,output)
-end 
-
-
-
+=#
 
 # Create table
-output = @capture_out begin
-    println(s"\documentclass{article}")
-    println(s"\usepackage{booktabs}")
-    println(s"\usepackage{float}")
-    println(s"\begin{document}")
-    println(s"\pagenumbering{gobble}") # suppress page numbering
-    println(s"\renewcommand{\arraystretch}{1.1}") # add space between row
-
-    # PAGE 3
-    println(s"\begin{table}[h] \centering")
-    println(s"\caption{\textbf{TD fe}}")
-    println(tabular_header_fe)
-    println(strings[1,:chunk])
-    println(tabular_fe)
-    println(tabular_bottom(df_n, df_r2))
-    println(s"\end{table}")
-    println(s"\end{document}")
-end
-
-# Write LATEX
-open(string.("analysis/output/tables/TD_panel_FE.tex"),"w") do io
-    println(io,output)
-end 
 
 
-################################
 
 
 #________________________________________________________________________________________________________________________________________

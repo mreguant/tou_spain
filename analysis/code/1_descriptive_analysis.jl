@@ -144,8 +144,8 @@ prices_plot=plot(df_month.date, df_month.total_price,linewidth=1.5,label="Total 
 plot!(df_month.date, df_month.charges,linewidth=1.5,label="Charges") 
 plot!(df_month.date, df_month.energy_cost,linewidth=1.5,label="Energy cost") 
 plot!(df_month.date, df_month.price_PT,linewidth=1.5,label="Portugal price") 
-plot!(xticks = ([Date(2018,1,01),Date(2018,06,01),Date(2019,1,1),Date(2019,06,01),Date(2020,01,01),Date(2020,06,01),Date(2021,01,01),Date(2021,06,01)],
-["2018-01","2018-06","2019-01","2019-06","2020-01","2020-06","2021-01","2021-06"]),
+plot!(xticks = ([Date(2018,1,01),Date(2018,07,01),Date(2019,1,1),Date(2019,07,01),Date(2020,01,01),Date(2020,07,01),Date(2021,01,01),Date(2021,07,01)],
+["2018-01","2018-07","2019-01","2019-07","2020-01","2020-07","2021-01","2021-07"]),
 yticks=([0,50,100,150,200,250],["0","50","100","150","200","250"]),
  xrotation = 60,
  ylabel = "Electricity prices (€/MWh)",  yguidefontsize = 10,
@@ -153,7 +153,7 @@ yticks=([0,50,100,150,200,250],["0","50","100","150","200","250"]),
  plot!([Date(2021,06,01),Date(2021,10,01)], seriestype="vline",color=:black,label="")
 
 
-#savefig(prices_plot, string("analysis/output/figures/price_decomposition_PT.pdf"))
+savefig(prices_plot, string("analysis/output/figures/price_decomposition_PT.pdf"))
 
 
 
