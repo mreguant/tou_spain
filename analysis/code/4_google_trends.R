@@ -15,9 +15,9 @@ library("lfe")
 #! change  --
 
 if ( Sys.info()[7]=="JacintE") {
-  shared_path <- "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+  shared_path <- "H:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 } else if ( Sys.info()[7]=="Jacint Enrich") {
-  shared_path <- "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+  shared_path <- "g:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 } 
 
 setwd(shared_path)
@@ -142,6 +142,9 @@ df_d%>%filter(date<as.Date("2021-09-15"))->df_d
 df_d %>% 
   dummy_cols(.,select_columns = c("tou","week","tou_w"))->df_d
 
+# cluster level
+df_d %>% 
+  mutate(dist_m = as.factor(paste0(dist,month_count)))->df_d
 
 
 #########################################################################
@@ -201,6 +204,7 @@ for (w in c(0,1)){
     
     reg_week_policy <- felm (cons_res ~ factor(week_policy)
                              |  factor(dist)*factor(hour)*factor(month) + factor(year)*factor(dist)*factor(hour)+ factor(month_count)*factor(hour)
+                             | 0 | dist_m
                              , df_r, weights = df_r[["consumer"]])
     
     
