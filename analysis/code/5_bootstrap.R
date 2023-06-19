@@ -16,13 +16,12 @@ library("lfe")
 #### Set up working directory 
 rm(list = ls())
 
-
 #! change  --
 
 if ( Sys.info()[7]=="JacintE") {
-  shared_path <- "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+  shared_path <- "H:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 } else if ( Sys.info()[7]=="Jacint Enrich") {
-  shared_path <- "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+  shared_path <- "G:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 } 
 
 setwd(shared_path)
@@ -202,7 +201,7 @@ for (i in (which(colnames(df_lasso)=="tempmax")+1):end){
 
 #########################################################################
 
-##### 1.  Sampling months to create predictions #########################
+##### 1.  Sampling months to create predictions (do not run, already saved) ###########
 
 #########################################################################
 
@@ -451,7 +450,7 @@ for (j in unique(df_lasso$dist)){
 #########################################################################
 
 
-##### 2.1.  Estimation ######################
+##### 2.1.  Estimation (do not run, already saved) ######################
 
 df_b <- NULL
 for (j in unique(df$dist)){
@@ -569,22 +568,16 @@ Nboot.fun(Nboot,df_b)
 coef_data <- NULL
 for (i in seq(100,1000,100)){
   
-  results_td<-readRDS(paste0("H:/La meva unitat/projects/ToU/outcome/tables/bootstrap/results_td/results_td_",i,".RData"))
+  results_td<-readRDS(paste0("G:/La meva unitat/projects/ToU/outcome/tables/bootstrap/results_td/results_td_",i,".RData"))
   coef_data_td <- results_td[[1]]
   
   coef_data <- rbind(coef_data,coef_data_td) 
 }  
 
-coef_mean <- coef_data %>% 
+coef_summ <- coef_data %>% 
   group_by(policy,tou_period,week) %>% 
-  summarise(coef.mean = mean(coef))
-
-
-
-#implied SE
-# coef_data %>%
-#   group_by(policy, tou_period,week) %>%
-#   summarise(std.error=sd(coef))
+  summarise(coef.mean = mean(coef),
+            coef.sd = sd(coef))
 
 
 ### Compare with main results
@@ -614,23 +607,74 @@ reg_check <- felm (cons_res ~ (policy:tou_w_1 + policy:tou_w_2 + policy:tou_w_3
                    + factor(month_count)  *factor(tou) * factor(hour)*factor(weekend), weights=df_pred$consumer
                    , df_pred)
 
-coef <- coef(reg_check)
+coef_reg <- coef(reg_check)
 
-#we are not including these coefficients to the plot
-coef_plot <- coef[grepl("placebo",names(coef)) &  grepl("week_0",names(coef)) ]
 ##
  
  
- 
-for (i in c(0,1)){
-  for (j in c(0,1)){
+##### 2.2.1.  Placebo - weekend ######################
 
     i = 0
     j = 0
     
- coef_x <- coef_mean %>%  filter(policy==i,week==j) 
- coef_x <- coef_x$coef.mean
+ coef_summ_l <- coef_summ %>%  filter(policy==i,week==j) 
+ coef_mean <- coef_summ_l$coef.mean
+ coef_sd <- coef_summ_l$coef.sd
  
+ 
+ my.labels <- paste0(round(coef_summ_l$coef.mean,3), "\n (", round(coef_summ_l$coef.sd,3), ")")
+ 
+ coef_reg_l <- coef_reg[grepl("placebo",names(coef_reg)) &  grepl("week_0",names(coef_reg)) ]
+ 
+coef_data %>%
+  filter(policy==i,week==j) %>%
+  ggplot(aes(x=coef, fill=tou_period,color=tou_period)) +
+  geom_density(alpha=.3)+
+  scale_fill_manual(breaks=c('Off-Peak', 'Mid-Peak', 'Peak'),values=c("goldenrod", "#00859B", "firebrick"))+
+  scale_color_manual(breaks=c('Off-Peak', 'Mid-Peak', 'Peak'),values=c("goldenrod", "#00859B", "firebrick"))+
+  ylab("Density")+
+  xlab("Coefficients")+
+  #means
+  geom_vline(xintercept=coef_mean,
+             linetype="dashed",color="black")+
+  #TD coefficients
+  geom_vline(xintercept=coef_reg_l,color=c("goldenrod", "#00859B", "firebrick"),
+             linetype="dashed")+
+
+  annotate("text", x = coef_reg_l[1], y=70, label = as.character(round(coef_reg_l[1],3)),angle = 0, hjust = -0.3,color=c("goldenrod"),size=4)+
+  annotate("text", x = coef_reg_l[2], y=70, label = as.character(round(coef_reg_l[2],3)),angle = 0, hjust = 1.,color=c("#00859B"),size=4)+
+  annotate("text", x = coef_reg_l[3], y=70, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = -0.3,color=c("firebrick"),size=4)+
+
+  scale_x_continuous(limit=c(-0.150,0.075),
+                      breaks=c(round(coef_mean[1],3)-0.008,round(coef_mean[2],3),round(coef_mean[3],3)+0.004),
+                     labels = my.labels)+
+  My_Theme+
+  theme(legend.position="bottom")+
+  theme(axis.text.x = element_text(size=10))+
+  theme(legend.title=element_blank())+
+  #labs( title = paste0("policy = ",i,", week = ",j))
+  labs( title = "Placebo - Weekend")+
+  theme(axis.text.x =element_text(angle=0,vjust = 0.5),
+        axis.ticks.x=element_blank())
+        
+
+#ggsave(filename=paste0("boot_td_policy_",i,"_week_",j,".pdf"),path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
+
+
+
+##### 2.2.2.  Placebo - week ######################
+
+i = 0
+j = 1
+
+coef_summ_l <- coef_summ %>%  filter(policy==i,week==j) 
+coef_mean <- coef_summ_l$coef.mean
+coef_sd <- coef_summ_l$coef.sd
+
+
+my.labels <- paste0(round(coef_summ_l$coef.mean,3), "\n (", round(coef_summ_l$coef.sd,3), ")")
+
+coef_reg_l <- coef_reg[grepl("placebo",names(coef_reg)) &  grepl("week_1",names(coef_reg)) ]
 
 coef_data %>%
   filter(policy==i,week==j) %>%
@@ -641,32 +685,137 @@ coef_data %>%
   ylab("Density")+
   xlab("Coefficients")+
   #means
-  geom_vline(xintercept=coef_x,
+  geom_vline(xintercept=coef_mean,
              linetype="dashed",color="black")+
   #TD coefficients
-  geom_vline(xintercept=coef_plot,color=c("goldenrod", "#00859B", "firebrick"),
+  geom_vline(xintercept=coef_reg_l,color=c("goldenrod", "#00859B", "firebrick"),
              linetype="dashed")+
-
-  annotate("text", x = coef_plot[1], y=70, label = as.character(round(coef_plot[1],3)),angle = 0, hjust = -0.3,color=c("goldenrod"),size=4)+
-  annotate("text", x = coef_plot[2], y=70, label = as.character(round(coef_plot[2],3)),angle = 0, hjust = 1.,color=c("#00859B"),size=4)+
-  annotate("text", x = coef_plot[3], y=70, label = as.character(round(coef_plot[3],3)),angle = 0, hjust = -0.3,color=c("firebrick"),size=4)+
-
+  
+  annotate("text", x = coef_reg_l[1], y=70, label = as.character(round(coef_reg_l[1],3)),angle = 0, hjust = -0.2,color=c("goldenrod"),size=4)+
+  annotate("text", x = coef_reg_l[2], y=70, label = as.character(round(coef_reg_l[2],3)),angle = 0, hjust = -0.2,color=c("#00859B"),size=4)+
+  annotate("text", x = coef_reg_l[3], y=70, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = 1,color=c("firebrick"),size=4)+
+  
   scale_x_continuous(limit=c(-0.150,0.075),
-                      breaks=c(-0.150,round(coef_x,3)))+
+                     breaks=c(round(coef_mean[1],3)+0.008,round(coef_mean[2],3),round(coef_mean[3],3)-0.008),
+                     labels = my.labels)+
   My_Theme+
   theme(legend.position="bottom")+
   theme(axis.text.x = element_text(size=10))+
   theme(legend.title=element_blank())+
   #labs( title = paste0("policy = ",i,", week = ",j))
-  labs( title = "Placebo - Weekend")+
-  theme(axis.text.x =element_text(angle=45,vjust = 0.5))
-        
+  labs( title = "Placebo - Week")+
+  theme(axis.text.x =element_text(angle=0,vjust = 0.5),
+        axis.ticks.x=element_blank())
+
 
 #ggsave(filename=paste0("boot_td_policy_",i,"_week_",j,".pdf"),path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
 
 
 
 
-}
-}
+##### 2.2.3.  Policy - weekend ######################
+
+i = 1
+j = 0
+
+coef_summ_l <- coef_summ %>%  filter(policy==i,week==j) 
+coef_mean <- coef_summ_l$coef.mean
+coef_sd <- coef_summ_l$coef.sd
+
+
+my.labels <- paste0(round(coef_summ_l$coef.mean,3), "\n (", round(coef_summ_l$coef.sd,3), ")")
+
+coef_reg_l <- coef_reg[grepl("policy",names(coef_reg)) &  grepl("week_0",names(coef_reg)) ]
+
+coef_data %>%
+  filter(policy==i,week==j) %>%
+  ggplot(aes(x=coef, fill=tou_period,color=tou_period)) +
+  geom_density(alpha=.3)+
+  scale_fill_manual(breaks=c('Off-Peak', 'Mid-Peak', 'Peak'),values=c("goldenrod", "#00859B", "firebrick"))+
+  scale_color_manual(breaks=c('Off-Peak', 'Mid-Peak', 'Peak'),values=c("goldenrod", "#00859B", "firebrick"))+
+  ylab("Density")+
+  xlab("Coefficients")+
+  #means
+  geom_vline(xintercept=coef_mean,
+             linetype="dashed",color="black")+
+  #TD coefficients
+  geom_vline(xintercept=coef_reg_l,color=c("goldenrod", "#00859B", "firebrick"),
+             linetype="dashed")+
+  
+  annotate("text", x = coef_reg_l[1], y=70, label = as.character(round(coef_reg_l[1],3)),angle = 0, hjust = -0.2,color=c("goldenrod"),size=4)+
+  annotate("text", x = coef_reg_l[2], y=70, label = as.character(round(coef_reg_l[2],3)),angle = 0, hjust = -0.2,color=c("#00859B"),size=4)+
+  annotate("text", x = coef_reg_l[3], y=70, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = 1,color=c("firebrick"),size=4)+
+  
+  scale_x_continuous(limit=c(-0.150,0.075),
+                     breaks=c(round(coef_mean[1],3)+0.007,round(coef_mean[2],3),round(coef_mean[3],3)-0.007),
+                     labels = my.labels)+
+  My_Theme+
+  theme(legend.position="bottom")+
+  theme(axis.text.x = element_text(size=10))+
+  theme(legend.title=element_blank())+
+  #labs( title = paste0("policy = ",i,", week = ",j))
+  labs( title = "Policy - Weekend")+
+  theme(axis.text.x =element_text(angle=0,vjust = 0.5),
+        axis.ticks.x=element_blank())
+
+
+#ggsave(filename=paste0("boot_td_policy_",i,"_week_",j,".pdf"),path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
+
+
+##### 2.2.4.  Policy - week ######################
+
+i = 1
+j = 1
+
+coef_summ_l <- coef_summ %>%  filter(policy==i,week==j) 
+coef_mean <- coef_summ_l$coef.mean
+coef_sd <- coef_summ_l$coef.sd
+
+
+my.labels <- paste0(round(coef_summ_l$coef.mean,3), "\n (", round(coef_summ_l$coef.sd,3), ")")
+
+coef_reg_l <- coef_reg[grepl("policy",names(coef_reg)) &  grepl("week_1",names(coef_reg)) ]
+
+coef_data %>%
+  filter(policy==i,week==j) %>%
+  ggplot(aes(x=coef, fill=tou_period,color=tou_period)) +
+  geom_density(alpha=.3)+
+  scale_fill_manual(breaks=c('Off-Peak', 'Mid-Peak', 'Peak'),values=c("goldenrod", "#00859B", "firebrick"))+
+  scale_color_manual(breaks=c('Off-Peak', 'Mid-Peak', 'Peak'),values=c("goldenrod", "#00859B", "firebrick"))+
+  ylab("Density")+
+  xlab("Coefficients")+
+  #means
+  geom_vline(xintercept=coef_mean,
+             linetype="dashed",color="black")+
+  #TD coefficients
+  geom_vline(xintercept=coef_reg_l,color=c("goldenrod", "#00859B", "firebrick"),
+             linetype="dashed")+
+  
+  annotate("text", x = coef_reg_l[1], y=70, label = as.character(round(coef_reg_l[1],3)),angle = 0, hjust = -0.4,color=c("goldenrod"),size=4)+
+  annotate("text", x = coef_reg_l[2], y=70, label = as.character(round(coef_reg_l[2],3)),angle = 0, hjust = -0.4,color=c("#00859B"),size=4)+
+  annotate("text", x = coef_reg_l[3], y=70, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = 1,color=c("firebrick"),size=4)+
+  
+  scale_x_continuous(limit=c(-0.150,0.075),
+                     breaks=c(round(coef_mean[1],3),round(coef_mean[2],3),round(coef_mean[3],3)),
+                     labels = my.labels)+
+  My_Theme+
+  theme(legend.position="bottom")+
+  theme(axis.text.x = element_text(size=10))+
+  theme(legend.title=element_blank())+
+  #labs( title = paste0("policy = ",i,", week = ",j))
+  labs( title = "Policy - Week")+
+  theme(axis.text.x =element_text(angle=0,vjust = 0.5),
+        axis.ticks.x=element_blank())
+
+
+#ggsave(filename=paste0("boot_td_policy_",i,"_week_",j,".pdf"),path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
+
+
+
+
+
+
+
+
+
 
