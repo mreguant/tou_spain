@@ -123,6 +123,7 @@ df.temph = (df.temp .> 20)
 
 # cluster level
 df.dist_m = categorical(string.(df.dist,df.month_count))
+df.dist_mc = categorical(string.(df.dist,df.month))
 
 #bimonth cluster to test for autocorrelation
 df.bimonth = ceil.(df.month_count/2)
@@ -182,7 +183,7 @@ model_did1 = reg(df_subset, @formula(log_demand_cp ~
     + temp*temph +
     fe(dist)*fe(month)*fe(hour)*fe(tou_real) 
     ),weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_bm)
 )
 
 model_did2 = reg(df_subset, @formula(log_demand_cp ~                                             
@@ -193,7 +194,7 @@ model_did2 = reg(df_subset, @formula(log_demand_cp ~
     + temp*temph +
     fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour)
     ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_bm)
 )            
 
 model_did3 = reg(df_subset, @formula(log_demand_cp ~ 
@@ -204,7 +205,7 @@ model_did3 = reg(df_subset, @formula(log_demand_cp ~
     + temp*temph +
     + fe(dist)*fe(month)*fe(hour)*fe(tou_real) +  fe(month_count)*fe(tou_real)*fe(hour)
     ),weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_bm)
 )
 
 model_did4 = reg(df_subset, @formula(log_demand_cp ~ 
@@ -217,7 +218,7 @@ model_did4 = reg(df_subset, @formula(log_demand_cp ~
     fe(dist)*fe(year)*fe(tou_real)*fe(hour) 
     + fe(month_count)*fe(tou_real)*fe(hour) 
     ), weights = :cons_w,
-   Vcov.cluster(:dist_m)
+   Vcov.cluster(:dist_bm)
 )
 
 models_did = [model_did1,model_did2,model_did3,model_did4]
@@ -331,7 +332,7 @@ output = @capture_out begin
 end
 
 # Write LATEX
-open(string.("analysis/output/tables/DID_panel_FE.tex"),"w") do io
+open(string.("analysis/output/tables/rr/DID_panel_FE_bm.tex"),"w") do io
     println(io,output)
 end 
 
@@ -352,7 +353,7 @@ model_td1 = reg(df_subset, @formula(log_demand_cp ~
     + temp*temph + 
     fe(dist)*fe(month)*fe(hour)*fe(week)*fe(tou_fake) 
     ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_bm)
 )
 model_td2 = reg(df_subset, @formula(log_demand_cp ~ 
     # policy 
@@ -362,7 +363,7 @@ model_td2 = reg(df_subset, @formula(log_demand_cp ~
     + temp*temph +
     fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
     ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_bm)
 )
 
 model_td3 = reg(df_subset, @formula(log_demand_cp ~
@@ -373,7 +374,7 @@ model_td3 = reg(df_subset, @formula(log_demand_cp ~
     + temp*temph +
     fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour)
     ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_bm)
 )
 
 model_td4 = reg(df_subset, @formula(log_demand_cp ~ 
@@ -385,7 +386,7 @@ model_td4 = reg(df_subset, @formula(log_demand_cp ~
     fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
     + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour) 
     ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_bm)
 )
 
 
@@ -506,7 +507,7 @@ output = @capture_out begin
 end
 
 # Write LATEX
-open(string.("analysis/output/tables/TD_panel_FE.tex"),"w") do io
+open(string.("analysis/output/tables/rr/TD_panel_FE_bm.tex"),"w") do io
     println(io,output)
 end 
 
@@ -535,7 +536,7 @@ model_did1 = reg(df_subset, @formula(cons_res_lasso ~
     #+ temp*temph 
     + fe(dist)*fe(month)*fe(hour)*fe(tou_real) 
     ),weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_bm)
 )
 
 model_did2 = reg(df_subset, @formula(cons_res_lasso ~                                             
@@ -546,7 +547,7 @@ model_did2 = reg(df_subset, @formula(cons_res_lasso ~
     #+ temp*temph 
     + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour)
     ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_bm)
 )            
 
 model_did3 = reg(df_subset, @formula(cons_res_lasso ~ 
@@ -557,7 +558,7 @@ model_did3 = reg(df_subset, @formula(cons_res_lasso ~
     #+ temp*temph 
     + fe(dist)*fe(month)*fe(hour)*fe(tou_real) +  fe(month_count)*fe(tou_real)*fe(hour)
     ),weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_bm)
 )
 
 model_did4 = reg(df_subset, @formula(cons_res_lasso ~ 
@@ -568,7 +569,7 @@ model_did4 = reg(df_subset, @formula(cons_res_lasso ~
     # + temp*temph 
     + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour) 
     + fe(month_count)*fe(tou_real)*fe(hour) ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_bm)
 )
 
 models_did = [model_did1,model_did2,model_did3,model_did4]
@@ -668,7 +669,7 @@ output = @capture_out begin
 end
 
 # Write LATEX
-open(string.("analysis/output/tables/DID_LASSO.tex"),"w") do io
+open(string.("analysis/output/tables/rr/DID_LASSO_bm.tex"),"w") do io
     println(io,output)
 end 
 
@@ -690,7 +691,7 @@ model_td1 = reg(df_subset, @formula(cons_res_lasso ~
     #+ temp*temph  
     + fe(dist)*fe(month)*fe(hour)*fe(week)*fe(tou_fake) 
     ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_mc)
 )
 model_td2 = reg(df_subset, @formula(cons_res_lasso ~ 
     # policy 
@@ -700,7 +701,7 @@ model_td2 = reg(df_subset, @formula(cons_res_lasso ~
     #+ temp*temph 
     + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
     ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_mc)
 )
 
 model_td3 = reg(df_subset, @formula(cons_res_lasso ~
@@ -711,7 +712,7 @@ model_td3 = reg(df_subset, @formula(cons_res_lasso ~
     #+ temp*temph 
     + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour)
     ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_mc)
 )
 
 model_td4 = reg(df_subset, @formula(cons_res_lasso ~ 
@@ -723,7 +724,7 @@ model_td4 = reg(df_subset, @formula(cons_res_lasso ~
     + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
     + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour) 
     ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
+    Vcov.cluster(:dist_mc)
 )
 
 models = [model_td1,model_td2,model_td3,model_td4]
@@ -842,7 +843,7 @@ output = @capture_out begin
 end
 
 # Write LATEX
-open(string.("analysis/output/tables/TD_LASSO.tex"),"w") do io
+open(string.("analysis/output/tables/rr/TD_LASSO_mc.tex"),"w") do io
     println(io,output)
 end 
 
