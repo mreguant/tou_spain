@@ -175,29 +175,18 @@ df_subset = filter(!(row->row.year in years_out), df)
 
 
 
-model_did1 = reg(df_subset, @formula(log_demand_cp ~ 
+model_did1 = reg(df_subset, @formula(log_demand_cp ~                                             
     # policy
     policy & tou_real 
     # placebo
     + placebo & tou_real  
     + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_real) 
-    ),weights = :cons_w,
-    Vcov.cluster(:dist_bm)
-)
-
-model_did2 = reg(df_subset, @formula(log_demand_cp ~                                             
-    # policy
-    policy & tou_real 
-    # placebo
-    + placebo & tou_real  
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour)
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour)
     ), weights = :cons_w,
-    Vcov.cluster(:dist_bm)
+    Vcov.cluster(:dist_m)
 )            
 
-model_did3 = reg(df_subset, @formula(log_demand_cp ~ 
+model_did2 = reg(df_subset, @formula(log_demand_cp ~ 
     # policy
     policy & tou_real 
     # placebo
@@ -205,21 +194,37 @@ model_did3 = reg(df_subset, @formula(log_demand_cp ~
     + temp*temph +
     + fe(dist)*fe(month)*fe(hour)*fe(tou_real) +  fe(month_count)*fe(tou_real)*fe(hour)
     ),weights = :cons_w,
-    Vcov.cluster(:dist_bm)
+    Vcov.cluster(:dist_m)
 )
+
+model_did3 = reg(df_subset, @formula(log_demand_cp ~ 
+    # policy
+    policy & tou_real 
+    # placebo
+    + placebo & tou_real  
+    + temp*temph +
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + 
+    fe(dist)*fe(year)*fe(tou_real)*fe(hour) 
+    + fe(month_count)*fe(tou_real)*fe(hour) 
+    ), weights = :cons_w,
+   Vcov.cluster(:dist_m)
+)
+
 
 model_did4 = reg(df_subset, @formula(log_demand_cp ~ 
     # policy
     policy & tou_real 
     # placebo
     + placebo & tou_real  
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_real) + 
+   # + temp*temph +
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + 
     fe(dist)*fe(year)*fe(tou_real)*fe(hour) 
     + fe(month_count)*fe(tou_real)*fe(hour) 
     ), weights = :cons_w,
-   Vcov.cluster(:dist_bm)
+   Vcov.cluster(:dist_m)
 )
+
+
 
 models_did = [model_did1,model_did2,model_did3,model_did4]
 
@@ -332,7 +337,7 @@ output = @capture_out begin
 end
 
 # Write LATEX
-open(string.("analysis/output/tables/rr/DID_panel_FE_bm.tex"),"w") do io
+open(string.("analysis/output/tables/DID_FE.tex"),"w") do io
     println(io,output)
 end 
 
@@ -345,48 +350,53 @@ years_out = 2020
 models = []
 df_subset = filter(!(row->row.year in years_out), df)
 
-model_td1 = reg(df_subset, @formula(log_demand_cp ~
+
+model_td1 = reg(df_subset, @formula(log_demand_cp ~ 
     # policy 
     policy & week_c & tou_fake 
     # placebo 
      + placebo & week_c & tou_fake 
-    + temp*temph + 
-    fe(dist)*fe(month)*fe(hour)*fe(week)*fe(tou_fake) 
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
     ), weights = :cons_w,
-    Vcov.cluster(:dist_bm)
-)
-model_td2 = reg(df_subset, @formula(log_demand_cp ~ 
-    # policy 
-    policy & week_c & tou_fake 
-    # placebo 
-     + placebo & week_c & tou_fake 
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
-    ), weights = :cons_w,
-    Vcov.cluster(:dist_bm)
+    Vcov.cluster(:dist_m)
 )
 
-model_td3 = reg(df_subset, @formula(log_demand_cp ~
+model_td2 = reg(df_subset, @formula(log_demand_cp ~
     # policy 
     policy & week_c & tou_fake 
     # placebo 
      + placebo & week_c & tou_fake 
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour)
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(month_count)*fe(week)*fe(hour)
     ), weights = :cons_w,
-    Vcov.cluster(:dist_bm)
+    Vcov.cluster(:dist_m)
 )
+
+model_td3 = reg(df_subset, @formula(log_demand_cp ~ 
+    # policy 
+    policy & week_c & tou_fake 
+    # placebo 
+     + placebo & week_c & tou_fake 
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+    + fe(month_count)*fe(week)*fe(hour) 
+    ), weights = :cons_w,
+    Vcov.cluster(:dist_m)
+)
+
+
 
 model_td4 = reg(df_subset, @formula(log_demand_cp ~ 
     # policy 
     policy & week_c & tou_fake 
     # placebo 
      + placebo & week_c & tou_fake 
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
-    + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour) 
+    #+ temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+    + fe(month_count)*fe(week)*fe(hour) 
     ), weights = :cons_w,
-    Vcov.cluster(:dist_bm)
+    Vcov.cluster(:dist_m)
 )
 
 
@@ -507,7 +517,7 @@ output = @capture_out begin
 end
 
 # Write LATEX
-open(string.("analysis/output/tables/rr/TD_panel_FE_bm.tex"),"w") do io
+open(string.("analysis/output/tables/TD_FE.tex"),"w") do io
     println(io,output)
 end 
 
@@ -528,38 +538,39 @@ years_out = 2020
 models_did = []
 df_subset = filter(!(row->row.year in years_out), df)
 
-model_did1 = reg(df_subset, @formula(cons_res_lasso ~ 
+model_did1 = reg(df_subset, @formula(cons_res_lasso ~                                             
     # policy
     policy & tou_real 
     # placebo
     + placebo & tou_real  
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) 
-    ),weights = :cons_w,
-    Vcov.cluster(:dist_bm)
-)
-
-model_did2 = reg(df_subset, @formula(cons_res_lasso ~                                             
-    # policy
-    policy & tou_real 
-    # placebo
-    + placebo & tou_real  
-    #+ temp*temph 
+    + temp*temph 
     + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour)
     ), weights = :cons_w,
-    Vcov.cluster(:dist_bm)
+    Vcov.cluster(:dist_m)
 )            
+
+model_did2 = reg(df_subset, @formula(cons_res_lasso ~ 
+    # policy
+    policy & tou_real 
+    # placebo
+    + placebo & tou_real  
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) +  fe(month_count)*fe(tou_real)*fe(hour)
+    ),weights = :cons_w,
+    Vcov.cluster(:dist_m)
+)
 
 model_did3 = reg(df_subset, @formula(cons_res_lasso ~ 
     # policy
     policy & tou_real 
     # placebo
     + placebo & tou_real  
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) +  fe(month_count)*fe(tou_real)*fe(hour)
-    ),weights = :cons_w,
-    Vcov.cluster(:dist_bm)
+     + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour) 
+    + fe(month_count)*fe(tou_real)*fe(hour) ), weights = :cons_w,
+    Vcov.cluster(:dist_m)
 )
+
 
 model_did4 = reg(df_subset, @formula(cons_res_lasso ~ 
     # policy
@@ -569,8 +580,10 @@ model_did4 = reg(df_subset, @formula(cons_res_lasso ~
     # + temp*temph 
     + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour) 
     + fe(month_count)*fe(tou_real)*fe(hour) ), weights = :cons_w,
-    Vcov.cluster(:dist_bm)
+    Vcov.cluster(:dist_m)
 )
+
+
 
 models_did = [model_did1,model_did2,model_did3,model_did4]
 
@@ -669,7 +682,7 @@ output = @capture_out begin
 end
 
 # Write LATEX
-open(string.("analysis/output/tables/rr/DID_LASSO_bm.tex"),"w") do io
+open(string.("analysis/output/tables/DID_LASSO.tex"),"w") do io
     println(io,output)
 end 
 
@@ -678,174 +691,179 @@ end
 # 2.4. LASSO - TOU * WEEK EFFECT
 #________________________________________________________________________________________________________________________________________
 
-# create subset 
-years_out = 2020
-models = []
-df_subset = filter(!(row->row.year in years_out), df)
+    # create subset 
+    years_out = 2020
+    models = []
+    df_subset = filter(!(row->row.year in years_out), df)
 
-model_td1 = reg(df_subset, @formula(cons_res_lasso ~
-    # policy 
-    policy & week_c & tou_fake 
-    # placebo 
-     + placebo & week_c & tou_fake 
-    #+ temp*temph  
-    + fe(dist)*fe(month)*fe(hour)*fe(week)*fe(tou_fake) 
-    ), weights = :cons_w,
-    Vcov.cluster(:dist_mc)
-)
-model_td2 = reg(df_subset, @formula(cons_res_lasso ~ 
-    # policy 
-    policy & week_c & tou_fake 
-    # placebo 
-     + placebo & week_c & tou_fake 
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
-    ), weights = :cons_w,
-    Vcov.cluster(:dist_mc)
-)
+    model_td1 = reg(df_subset, @formula(cons_res_lasso ~ 
+        # policy 
+        policy & week_c & tou_fake 
+        # placebo 
+        + placebo & week_c & tou_fake 
+        + temp*temph 
+        + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+        ), weights = :cons_w,
+        Vcov.cluster(:dist_m)
+    )
 
-model_td3 = reg(df_subset, @formula(cons_res_lasso ~
-    # policy 
-    policy & week_c & tou_fake 
-    # placebo 
-     + placebo & week_c & tou_fake 
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour)
-    ), weights = :cons_w,
-    Vcov.cluster(:dist_mc)
-)
+    model_td2 = reg(df_subset, @formula(cons_res_lasso ~
+        # policy 
+        policy & week_c & tou_fake 
+        # placebo 
+        + placebo & week_c & tou_fake 
+        + temp*temph 
+        + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(month_count)*fe(week)*fe(hour)
+        ), weights = :cons_w,
+        Vcov.cluster(:dist_m)
+    )
 
-model_td4 = reg(df_subset, @formula(cons_res_lasso ~ 
-    # policy 
-    policy & week_c & tou_fake 
-    # placebo 
-     + placebo & week_c & tou_fake 
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
-    + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour) 
-    ), weights = :cons_w,
-    Vcov.cluster(:dist_mc)
-)
+    model_td3 = reg(df_subset, @formula(cons_res_lasso ~ 
+        # policy 
+        policy & week_c & tou_fake 
+        # placebo 
+        + placebo & week_c & tou_fake 
+        + temp*temph 
+        + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+        + fe(month_count)*fe(week)*fe(hour) 
+        ), weights = :cons_w,
+        Vcov.cluster(:dist_m)
+    )
 
-models = [model_td1,model_td2,model_td3,model_td4]
 
-# Store coefficients
+    model_td4 = reg(df_subset, @formula(cons_res_lasso ~ 
+        # policy 
+        policy & week_c & tou_fake 
+        # placebo 
+        + placebo & week_c & tou_fake 
+        #+ temp*temph 
+        + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+        + fe(month_count)*fe(week)*fe(hour) 
+        ), weights = :cons_w,
+        Vcov.cluster(:dist_m)
+    )
 
-df_coef = DataFrame()
-df_se = DataFrame()
-df_n = []
-df_r2 = []
-for spe in 1:4
-    spe_col_coef = []
-    spe_col_se = []
-    spe_col_n = []
-    spe_col_r2 = []
-    model = models[spe]
-    coefs_names = coefnames(model)[occursin.(r"policy|placebo", coefnames(model))]
-    # coefs policy 
-    coefs_policy = coef(model)[occursin.("policy", coefnames(model))]
-    # coefs placebo
-    coefs_placebo = coef(model)[occursin.("placebo", coefnames(model))]
-    # coefs
-    coefs = [coefs_policy; coefs_placebo]
 
-    # standard errors policy
-    se_policy = stderror(model)[occursin.("policy", coefnames(model))]
-    # standard errors placebo
-    se_placebo = stderror(model)[occursin.("placebo", coefnames(model))]
-    # standard erros 
-    se = [se_policy; se_placebo]
 
-    # significance 
-    t = abs.(coefs ./ se)
-    p = 2 .*(1 .- cdf.(Normal(0,1),t))
-    signs = ifelse.(p.<=0.001,"***",
-                ifelse.(p.<=0.05,"**",
-                    ifelse.(p.<=0.1,"*","")))
-        
-    # formating 
-    coefs = round.(coefs,digits=3)
-    se = round.(se,digits=3)
-    coefs= Printf.format.(Ref(Printf.Format("%.3f")), coefs)
-    coefs = string.(coefs,"\$^{", signs,"}\$")
-    se = Printf.format.(Ref(Printf.Format("%.3f")), se)
-    se = string.("(",se,")")
+    models = [model_td1,model_td2,model_td3,model_td4]
 
-    # observations
-    global spe_col_coef_name = coefs_names
-    df_coef[:,string("spe",spe)] = coefs
-    df_se[:,string("spe",spe)] = se
-    append!(df_n, nobs(model))
-    append!(df_r2, adjr2(model))
-end
+    # Store coefficients
 
-# Formatting N, R2
-df_n = commas.(df_n)
-df_r2 = Printf.format.(Ref(Printf.Format("%.3f")), df_r2)
+    df_coef = DataFrame()
+    df_se = DataFrame()
+    df_n = []
+    df_r2 = []
+    for spe in 1:4
+        spe_col_coef = []
+        spe_col_se = []
+        spe_col_n = []
+        spe_col_r2 = []
+        model = models[spe]
+        coefs_names = coefnames(model)[occursin.(r"policy|placebo", coefnames(model))]
+        # coefs policy 
+        coefs_policy = coef(model)[occursin.("policy", coefnames(model))]
+        # coefs placebo
+        coefs_placebo = coef(model)[occursin.("placebo", coefnames(model))]
+        # coefs
+        coefs = [coefs_policy; coefs_placebo]
 
-pp = length(unique(occursin.("placebo", spe_col_coef_name)))
-w = ifelse(pp == 2, "placebo", "")
+        # standard errors policy
+        se_policy = stderror(model)[occursin.("policy", coefnames(model))]
+        # standard errors placebo
+        se_placebo = stderror(model)[occursin.("placebo", coefnames(model))]
+        # standard erros 
+        se = [se_policy; se_placebo]
 
-# Formating coefs string
-df_coef[:, :coef_names] = spe_col_coef_name
-df_coef[:, :name] = repeat([repeat(["Off-Peak"],outer=2);repeat(["Mid-Peak"],outer=2);repeat(["Peak"],outer=2)],outer=pp)
+        # significance 
+        t = abs.(coefs ./ se)
+        p = 2 .*(1 .- cdf.(Normal(0,1),t))
+        signs = ifelse.(p.<=0.001,"***",
+                    ifelse.(p.<=0.05,"**",
+                        ifelse.(p.<=0.1,"*","")))
+            
+        # formating 
+        coefs = round.(coefs,digits=3)
+        se = round.(se,digits=3)
+        coefs= Printf.format.(Ref(Printf.Format("%.3f")), coefs)
+        coefs = string.(coefs,"\$^{", signs,"}\$")
+        se = Printf.format.(Ref(Printf.Format("%.3f")), se)
+        se = string.("(",se,")")
 
-# Formating se string
-df_se[:, :coef_names] = spe_col_coef_name
-df_se[:, :name] .= ""
+        # observations
+        global spe_col_coef_name = coefs_names
+        df_coef[:,string("spe",spe)] = coefs
+        df_se[:,string("spe",spe)] = se
+        append!(df_n, nobs(model))
+        append!(df_r2, adjr2(model))
+    end
 
-# Combine coef with corresponding se
-df_cs = [df_coef;df_se]
-df_cs[:,:placebo] = occursin.("placebo", df_cs.coef_names)
-df_cs[:,:week] = occursin.("week_c: week ", df_cs.coef_names)
-df_cs[:,:type] = ifelse.(df_cs.name .== "", "se", "coef")
-sort!(df_cs,[:placebo, :week, :coef_names, :type])
+    # Formatting N, R2
+    df_n = commas.(df_n)
+    df_r2 = Printf.format.(Ref(Printf.Format("%.3f")), df_r2)
 
-df_cs[:, :string1] .= string.(df_cs.name,"&",df_cs.spe1,"&",df_cs.spe2,"&",df_cs.spe3,"&",df_cs.spe4,s"\\\\")
+    pp = length(unique(occursin.("placebo", spe_col_coef_name)))
+    w = ifelse(pp == 2, "placebo", "")
 
-df_cs.string2 = 
-    ifelse.((df_cs.coef_names .== "policy & week_c: weekend & tou_fake: 1") .& (df_cs.type .== "coef"),  
-    string.(s"\multicolumn{5}{l}{\textbf{Policy Weekend}}\\\\"," \n"),
-    ifelse.((df_cs.coef_names .== "policy & week_c: week & tou_fake: 1") .& (df_cs.type .== "coef"), 
-        string.(s"\multicolumn{5}{l}{\textbf{Policy Week}}\\\\"," \n"),
-    ifelse.((pp == 2) .& (df_cs.coef_names .== "placebo & week_c: weekend & tou_fake: 1") .& (df_cs.type .== "coef"), 
-        string.(s"\multicolumn{5}{l}{\textbf{Placebo Weekend}}\\\\"," \n"),
-    ifelse.((pp == 2) .& (df_cs.coef_names .== "placebo & week_c: week & tou_fake: 1") .& (df_cs.type .== "coef"), 
-        string.(s"\multicolumn{5}{l}{\textbf{Placebo Week}}\\\\"," \n"), ""
-))))
+    # Formating coefs string
+    df_coef[:, :coef_names] = spe_col_coef_name
+    df_coef[:, :name] = repeat([repeat(["Off-Peak"],outer=2);repeat(["Mid-Peak"],outer=2);repeat(["Peak"],outer=2)],outer=pp)
 
-df_cs[:,:string] = string.(df_cs.string2,df_cs.string1)
+    # Formating se string
+    df_se[:, :coef_names] = spe_col_coef_name
+    df_se[:, :name] .= ""
 
-# Create subset of string 
-strings = DataFrame()
-chunk = join(df_cs[:,:string],"\n")
-df_chunk = DataFrame(chunk=chunk)
-append!(strings,df_chunk)
+    # Combine coef with corresponding se
+    df_cs = [df_coef;df_se]
+    df_cs[:,:placebo] = occursin.("placebo", df_cs.coef_names)
+    df_cs[:,:week] = occursin.("week_c: week ", df_cs.coef_names)
+    df_cs[:,:type] = ifelse.(df_cs.name .== "", "se", "coef")
+    sort!(df_cs,[:placebo, :week, :coef_names, :type])
 
-# Create table
-output = @capture_out begin
-    println(s"\documentclass{article}")
-    println(s"\usepackage{booktabs}")
-    println(s"\usepackage{float}")
-    println(s"\begin{document}")
-    println(s"\pagenumbering{gobble}") # suppress page numbering
-    println(s"\renewcommand{\arraystretch}{1.1}") # add space between row
+    df_cs[:, :string1] .= string.(df_cs.name,"&",df_cs.spe1,"&",df_cs.spe2,"&",df_cs.spe3,"&",df_cs.spe4,s"\\\\")
 
-    # PAGE 3
-    println(s"\begin{table}[h] \centering")
-    println(s"\caption{\textbf{TD LASSO}}")
-    println(tabular_header_pred)
-    println(strings[1,:chunk])
-    println(tabular_fe)
-    println(tabular_bottom(df_n, df_r2))
-    println(s"\end{table}")
-    println(s"\end{document}")
-end
+    df_cs.string2 = 
+        ifelse.((df_cs.coef_names .== "policy & week_c: weekend & tou_fake: 1") .& (df_cs.type .== "coef"),  
+        string.(s"\multicolumn{5}{l}{\textbf{Policy Weekend}}\\\\"," \n"),
+        ifelse.((df_cs.coef_names .== "policy & week_c: week & tou_fake: 1") .& (df_cs.type .== "coef"), 
+            string.(s"\multicolumn{5}{l}{\textbf{Policy Week}}\\\\"," \n"),
+        ifelse.((pp == 2) .& (df_cs.coef_names .== "placebo & week_c: weekend & tou_fake: 1") .& (df_cs.type .== "coef"), 
+            string.(s"\multicolumn{5}{l}{\textbf{Placebo Weekend}}\\\\"," \n"),
+        ifelse.((pp == 2) .& (df_cs.coef_names .== "placebo & week_c: week & tou_fake: 1") .& (df_cs.type .== "coef"), 
+            string.(s"\multicolumn{5}{l}{\textbf{Placebo Week}}\\\\"," \n"), ""
+    ))))
 
-# Write LATEX
-open(string.("analysis/output/tables/rr/TD_LASSO_mc.tex"),"w") do io
-    println(io,output)
-end 
+    df_cs[:,:string] = string.(df_cs.string2,df_cs.string1)
+
+    # Create subset of string 
+    strings = DataFrame()
+    chunk = join(df_cs[:,:string],"\n")
+    df_chunk = DataFrame(chunk=chunk)
+    append!(strings,df_chunk)
+
+    # Create table
+    output = @capture_out begin
+        println(s"\documentclass{article}")
+        println(s"\usepackage{booktabs}")
+        println(s"\usepackage{float}")
+        println(s"\begin{document}")
+        println(s"\pagenumbering{gobble}") # suppress page numbering
+        println(s"\renewcommand{\arraystretch}{1.1}") # add space between row
+
+        # PAGE 3
+        println(s"\begin{table}[h] \centering")
+        println(s"\caption{\textbf{TD LASSO}}")
+        println(tabular_header_pred)
+        println(strings[1,:chunk])
+        println(tabular_fe)
+        println(tabular_bottom(df_n, df_r2))
+        println(s"\end{table}")
+        println(s"\end{document}")
+    end
+
+    # Write LATEX
+    open(string.("analysis/output/tables/TD_LASSO.tex"),"w") do io
+        println(io,output)
+    end 
 
 
 
@@ -858,38 +876,40 @@ years_out = 2020
 models_did = []
 df_subset = filter(!(row->row.year in years_out), df)
 
-model_did1 = reg(df_subset, @formula(cons_res_rf ~ 
+model_did1 = reg(df_subset, @formula(cons_res_rf ~                                             
     # policy
     policy & tou_real 
     # placebo
     + placebo & tou_real  
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) 
-    ),weights = :cons_w,
-    Vcov.cluster(:dist_m)
-)
-
-model_did2 = reg(df_subset, @formula(cons_res_rf ~                                             
-    # policy
-    policy & tou_real 
-    # placebo
-    + placebo & tou_real  
-    #+ temp*temph 
+    + temp*temph 
     + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour)
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )            
+
+model_did2 = reg(df_subset, @formula(cons_res_rf ~ 
+    # policy
+    policy & tou_real 
+    # placebo
+    + placebo & tou_real  
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) +  fe(month_count)*fe(tou_real)*fe(hour)
+    ),weights = :cons_w,
+    Vcov.cluster(:dist_m)
+)
 
 model_did3 = reg(df_subset, @formula(cons_res_rf ~ 
     # policy
     policy & tou_real 
     # placebo
     + placebo & tou_real  
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) +  fe(month_count)*fe(tou_real)*fe(hour)
-    ),weights = :cons_w,
+     + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(tou_real)*fe(hour) 
+    + fe(month_count)*fe(tou_real)*fe(hour) ), weights =:cons_w,
     Vcov.cluster(:dist_m)
 )
+
+
 
 model_did4 = reg(df_subset, @formula(cons_res_rf ~ 
     # policy
@@ -901,6 +921,8 @@ model_did4 = reg(df_subset, @formula(cons_res_rf ~
     + fe(month_count)*fe(tou_real)*fe(hour) ), weights =:cons_w,
     Vcov.cluster(:dist_m)
 )
+
+
 
 models_did = [model_did1,model_did2,model_did3,model_did4]
 
@@ -1011,37 +1033,40 @@ models = []
 df_subset = filter(!(row->row.year in years_out), df)
 
 
-model_td1 = reg(df_subset, @formula(cons_res_rf ~
+model_td1 = reg(df_subset, @formula(cons_res_rf ~ 
     # policy 
     policy & week_c & tou_fake 
     # placebo 
      + placebo & week_c & tou_fake 
-    #+ temp*temph  
-    + fe(dist)*fe(month)*fe(hour)*fe(week)*fe(tou_fake) 
-    ), weights =:cons_w,
-    Vcov.cluster(:dist_m)
-)
-model_td2 = reg(df_subset, @formula(cons_res_rf ~ 
-    # policy 
-    policy & week_c & tou_fake 
-    # placebo 
-     + placebo & week_c & tou_fake 
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )
 
-model_td3 = reg(df_subset, @formula(cons_res_rf ~
+model_td2 = reg(df_subset, @formula(cons_res_rf ~
     # policy 
     policy & week_c & tou_fake 
     # placebo 
      + placebo & week_c & tou_fake 
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour)
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(month_count)*fe(week)*fe(hour)
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )
+
+model_td3 = reg(df_subset, @formula(cons_res_rf ~ 
+    # policy 
+    policy & week_c & tou_fake 
+    # placebo 
+     + placebo & week_c & tou_fake 
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+    + fe(month_count)*fe(week)*fe(hour) 
+    ), weights = :cons_w,
+    Vcov.cluster(:dist_m)
+)
+
 
 model_td4 = reg(df_subset, @formula(cons_res_rf ~ 
     # policy 
@@ -1049,11 +1074,12 @@ model_td4 = reg(df_subset, @formula(cons_res_rf ~
     # placebo 
      + placebo & week_c & tou_fake 
     #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
-    + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour) 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+    + fe(month_count)*fe(week)*fe(hour) 
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )
+
 
 models = [model_td1,model_td2,model_td3,model_td4]
 
@@ -1304,7 +1330,7 @@ df_reg.cons_w = df_reg.consumer/1000000.0
 
 model_ols_fe = reg(df_reg, @formula(log_demand_cp ~
     log_price +
-    temp*temph +
+    #temp*temph +
     fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(hour)*fe(tou_real) +
     fe(month_count)*fe(hour)*fe(tou_real)
      ), weights = :cons_w,
@@ -1315,7 +1341,7 @@ model_ols_fe = reg(df_reg, @formula(log_demand_cp ~
 
 model_ols_lasso = reg(df_reg, @formula( cons_res_lasso ~
     log_price +
-    temp*temph +
+    #temp*temph +
     fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(hour)*fe(tou_real) +
     fe(month_count)*fe(hour)*fe(tou_real)
      ), weights = :cons_w,
@@ -1324,7 +1350,7 @@ model_ols_lasso = reg(df_reg, @formula( cons_res_lasso ~
 
 model_iv_fe = reg(df_reg, @formula(log_demand_cp ~
     (log_price ~ log_tou_pe) +
-    temp*temph +
+    #temp*temph +
     fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(hour)*fe(tou_real) +
     fe(month_count)*fe(hour)*fe(tou_real)
 ), weights = :cons_w,
@@ -1334,7 +1360,7 @@ Vcov.cluster(:dist_m)
 
 model_iv_lasso = reg(df_reg, @formula(cons_res_lasso ~
     (log_price ~ log_tou_pe ) +
-    temp*temph +
+    #temp*temph +
     fe(dist)*fe(month)*fe(tou_real)*fe(hour) + fe(dist)*fe(year)*fe(tou_real)*fe(hour)  +
     fe(month_count)*fe(hour)*fe(tou_real)
 ), weights = :cons_w,
@@ -1346,7 +1372,7 @@ Vcov.cluster(:dist_m)
 
 f_stage = reg(df_reg, @formula(log_price ~
 log_tou_pe + 
-temp*temph +
+#temp*temph +
 fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(hour)*fe(tou_real) +
 fe(month_count)*fe(hour)*fe(tou_real)
 ), weights = :cons_w,
@@ -1431,7 +1457,7 @@ model_f_stage = []
 
         model_s_fe = reg(data, @formula(log_demand_cp ~
         (log_price ~ log_tou_pe) +
-        temp*temph +
+        #temp*temph +
         fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(hour)*fe(tou_real) +
         fe(month_count)*fe(hour)*fe(tou_real)
         ), weights = :cons_w,
@@ -1442,7 +1468,7 @@ model_f_stage = []
     
         model_s_lasso = reg(data, @formula(cons_res_lasso ~
         (log_price ~ log_tou_pe) +
-        temp*temph +
+        #temp*temph +
         fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(hour)*fe(tou_real) +
         fe(month_count)*fe(hour)*fe(tou_real)
         ), weights = :cons_w,
@@ -1451,22 +1477,21 @@ model_f_stage = []
         push!(model_split_lasso, model_s_lasso)
     
     
-        f_stage_s = reg(data, @formula(log_price ~
-        log_tou_pe + 
-        temp*temph +
-        fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(hour)*fe(tou_real) +
-        fe(month_count)*fe(hour)*fe(tou_real)
-        ), weights = :cons_w,
-        Vcov.cluster(:dist_m)
-        )
+        #f_stage_s = reg(data, @formula(log_price ~
+        #log_tou_pe + 
+        #temp*temph +
+        #fe(dist)*fe(month)*fe(hour)*fe(tou_real) + fe(dist)*fe(year)*fe(hour)*fe(tou_real) +
+        #fe(month_count)*fe(hour)*fe(tou_real)
+        #), weights = :cons_w,
+        #Vcov.cluster(:dist_m)
+        #)
         
-        push!(model_f_stage, f_stage_s)
+        #push!(model_f_stage, f_stage_s)
     
     
         j = i
     end
     
-    model_split_lasso
     
 
 #################################
@@ -1667,7 +1692,7 @@ model_hour = reg(df_subset, @formula(log_demand_cp ~
     policy & week_c & hour_c
     # placebo
     + placebo & week_c & hour_c
-    + temp*temph 
+    #+ temp*temph 
     + fe(dist)*fe(month)*fe(week_c)*fe(hour_c) 
     + fe(dist)*fe(year)*fe(week_c)*fe(hour_c) 
     + fe(month_count)*fe(week_c)*fe(hour_c)), weights = :cons_w,
@@ -1909,50 +1934,54 @@ years_out = 2020
 models = []
 df_subset = filter(!(row->row.year in years_out), df)
 
-model_td1 = reg(df_subset, @formula(log_demand_cp ~
-    # policy 
-    policy & tou_fake * week_c   
-    # placebo 
-    + placebo &  tou_fake * week_c 
-    + temp*temph + 
-    fe(dist)*fe(month)*fe(hour)*fe(week)*fe(tou_fake) 
-    ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
-)
-
-model_td2 = reg(df_subset, @formula(log_demand_cp ~ 
+model_td1 = reg(df_subset, @formula(log_demand_cp ~ 
     # policy 
     policy & tou_fake * week_c   
     # placebo 
     + placebo &  tou_fake * week_c 
     + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
+    fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )
 
-model_td3 = reg(df_subset, @formula(log_demand_cp ~
+model_td2 = reg(df_subset, @formula(log_demand_cp ~
     # policy 
     policy & tou_fake * week_c   
     # placebo 
     + placebo &  tou_fake * week_c 
     + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour)
+    fe(dist)*fe(month)*fe(hour)*fe(week) + fe(month_count)*fe(week)*fe(hour)
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )
+
+model_td3 = reg(df_subset, @formula(log_demand_cp ~ 
+   # policy 
+   policy & tou_fake * week_c   
+   # placebo 
+   + placebo &  tou_fake * week_c 
+    + temp*temph +
+    fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+    + fe(month_count)*fe(week)*fe(hour) 
+    ), weights = :cons_w,
+    Vcov.cluster(:dist_m)
+)
+
 
 model_td4 = reg(df_subset, @formula(log_demand_cp ~ 
    # policy 
    policy & tou_fake * week_c   
    # placebo 
    + placebo &  tou_fake * week_c 
-    + temp*temph +
-    fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
-    + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour) 
+    #+ temp*temph +
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+    + fe(month_count)*fe(week)*fe(hour) 
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )
+
+
 
 models = [model_td1,model_td2,model_td3,model_td4]
 
@@ -2087,37 +2116,40 @@ years_out = 2020
 models = []
 df_subset = filter(!(row->row.year in years_out), df)
 
-model_td1 = reg(df_subset, @formula(cons_res_lasso ~
+model_td1 = reg(df_subset, @formula(cons_res_lasso ~ 
     # policy 
     policy & tou_fake * week_c   
     # placebo 
     + placebo &  tou_fake * week_c 
-    #+ temp*temph  
-    + fe(dist)*fe(month)*fe(hour)*fe(week)*fe(tou_fake) 
-    ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
-)
-model_td2 = reg(df_subset, @formula(cons_res_lasso ~ 
-    # policy 
-    policy & tou_fake * week_c   
-    # placebo 
-    + placebo &  tou_fake * week_c 
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )
 
-model_td3 = reg(df_subset, @formula(cons_res_lasso ~
+model_td2 = reg(df_subset, @formula(cons_res_lasso ~
     # policy 
     policy & tou_fake * week_c   
     # placebo 
     + placebo &  tou_fake * week_c 
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour)
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(month_count)*fe(week)*fe(hour)
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )
+
+model_td3 = reg(df_subset, @formula(cons_res_lasso ~ 
+    # policy 
+    policy & tou_fake * week_c   
+    # placebo 
+    + placebo &  tou_fake * week_c 
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+    + fe(month_count)*fe(week)*fe(hour) 
+    ), weights = :cons_w,
+    Vcov.cluster(:dist_m)
+)
+
 
 model_td4 = reg(df_subset, @formula(cons_res_lasso ~ 
     # policy 
@@ -2125,11 +2157,14 @@ model_td4 = reg(df_subset, @formula(cons_res_lasso ~
     # placebo 
     + placebo &  tou_fake * week_c 
     #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
-    + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour) 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+    + fe(month_count)*fe(week)*fe(hour) 
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )
+
+
+
 
 models = [model_td1,model_td2,model_td3,model_td4]
 
@@ -2264,38 +2299,40 @@ years_out = 2020
 models = []
 df_subset = filter(!(row->row.year in years_out), df)
 
-
-model_td1 = reg(df_subset, @formula(cons_res_rf ~
+model_td1 = reg(df_subset, @formula(cons_res_rf ~ 
     # policy 
     policy & tou_fake * week_c   
     # placebo 
     + placebo &  tou_fake * week_c
-    #+ temp*temph  
-    + fe(dist)*fe(month)*fe(hour)*fe(week)*fe(tou_fake) 
-    ), weights = :cons_w,
-    Vcov.cluster(:dist_m)
-)
-model_td2 = reg(df_subset, @formula(cons_res_rf ~ 
-    # policy 
-    policy & tou_fake * week_c   
-    # placebo 
-    + placebo &  tou_fake * week_c
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )
 
-model_td3 = reg(df_subset, @formula(cons_res_rf ~
+model_td2 = reg(df_subset, @formula(cons_res_rf ~
     # policy 
     policy & tou_fake * week_c   
     # placebo 
     + placebo &  tou_fake * week_c
-    #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour)
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(month_count)*fe(week)*fe(hour)
     ), weights = :cons_w,
     Vcov.cluster(:dist_m)
 )
+
+model_td3 = reg(df_subset, @formula(cons_res_rf ~ 
+    # policy 
+    policy & tou_fake * week_c   
+    # placebo 
+    + placebo &  tou_fake * week_c
+    + temp*temph 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+    + fe(month_count)*fe(week)*fe(hour) 
+    ), weights =:cons_w,
+    Vcov.cluster(:dist_m)
+)
+
 
 model_td4 = reg(df_subset, @formula(cons_res_rf ~ 
     # policy 
@@ -2303,11 +2340,13 @@ model_td4 = reg(df_subset, @formula(cons_res_rf ~
     # placebo 
     + placebo &  tou_fake * week_c
     #+ temp*temph 
-    + fe(dist)*fe(month)*fe(hour)*fe(tou_fake)*fe(week) + fe(dist)*fe(year)*fe(tou_fake)*fe(week)*fe(hour) 
-    + fe(month_count)*fe(tou_fake)*fe(week)*fe(hour) 
+    + fe(dist)*fe(month)*fe(hour)*fe(week) + fe(dist)*fe(year)*fe(week)*fe(hour) 
+    + fe(month_count)*fe(week)*fe(hour) 
     ), weights =:cons_w,
     Vcov.cluster(:dist_m)
 )
+
+
 
 models = [model_td1,model_td2,model_td3,model_td4]
 
