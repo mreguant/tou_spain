@@ -15,17 +15,15 @@ library("lfe")
 #### Set up working directory 
 rm(list = ls())
 
-#! change  --
 
 if ( Sys.info()[7]=="JacintE") {
-  shared_path <- "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+  shared_path <- "H:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 } else if ( Sys.info()[7]=="Jacint Enrich") {
-  shared_path <- "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+  shared_path <- "G:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 } 
 
 setwd(shared_path)
 
-#! --
 
 ## graphs format
 theme_set(theme_bw())
@@ -94,6 +92,7 @@ df %>% mutate(weekend = ifelse(weekend == "true" ,1,0),
 
 
 df%>%mutate(T_date = ifelse(year == 2021 & month >5,1,0),
+            P_date = ifelse(year == 2021 & month >4,1,0),
             policy = ifelse(T_date == 1 & country == "ES",1,0),
             policy_month = policy*month,
             placebo_2 = ifelse (year == 2021 & (month ==5 | month ==4) & country == "ES",1,0),
@@ -136,7 +135,7 @@ year_dummy = c("yes","no")[2]
 
 if (year_dummy == "yes"){
   df%>% select(dist,
-               date,T_date,year,month,hour,country,month_count,consumption,temp,tempmin,tempmax,weekend,national_holiday
+               date,T_date,P_date,year,month,hour,country,month_count,consumption,temp,tempmin,tempmax,weekend,national_holiday
   )%>%
     dummy_cols(.,select_columns = c("year","month"))->df_lasso
   
@@ -156,7 +155,7 @@ if (year_dummy == "yes"){
   
 } else {
   df%>% select(dist,
-               date,T_date,year,month,hour,country,month_count,consumption,temp,tempmin,tempmax,
+               date,T_date,P_date,year,month,hour,country,month_count,consumption,temp,tempmin,tempmax,
                weekend,national_holiday
   )%>%
     dummy_cols(.,select_columns = c("month"))->df_lasso
@@ -197,7 +196,7 @@ for (i in (which(colnames(df_lasso)=="tempmax")+1):end){
 #keep initial dataframe:
 df_baseline <- df
 
-run_model <- c("YES","NO")[2]
+run_model <- c("YES","NO")[1]
 
 if (run_model == "YES"){
 
@@ -396,6 +395,8 @@ write.csv(x=imp, "./analysis/output/data/importance_rf.csv", row.names = F)
   
   
 }
+
+
 #########################################################################
 
 ##### 2.  Model diagnostics  ############################################
