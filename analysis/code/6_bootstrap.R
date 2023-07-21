@@ -455,7 +455,7 @@ for (j in unique(df_lasso$dist)){
 df_b <- NULL
 for (j in unique(df$dist)){
   
-  df_dist<-read.csv(file = paste0("H:/La meva unitat/projects/ToU/data/bootstrap/df_boot_",j,".csv"),header=TRUE, sep = ",",dec=".")
+  df_dist<-read.csv(file = paste0("bootstrap/df_boot_",j,".csv"),header=TRUE, sep = ",",dec=".")
   df_b <- rbind(df_b,df_dist) 
 }  
 
@@ -499,9 +499,8 @@ boot.fun <- function(data_sample){
                                   + placebo:tou_w_1 + placebo:tou_w_2 + placebo:tou_w_3):week_0
                       + (policy:tou_w_1 + policy:tou_w_2 + policy:tou_w_3
                          + placebo:tou_w_1 + placebo:tou_w_2 + placebo:tou_w_3):week_1
-                      |  factor(dist)*factor(hour)*factor(month) *factor(tou)*factor(week)+ 
-                        factor(year)*factor(dist) * factor(tou)*factor(hour)*factor(week)
-                      + factor(month_count)  *factor(tou) * factor(hour)*factor(week), weights=df_reg$consumer
+                      |  factor(dist)*factor(hour)*factor(month)*factor(week)+ 
+                      + factor(month_count)  * factor(hour)*factor(week), weights=df_reg$consumer
                       , df_reg)
   
   
@@ -526,7 +525,7 @@ Nboot <- 1000
 save_c <- seq(0,1000,100)
 
 Nboot.fun <- function(Nboot,data_sample){
-  count<-1301
+  count<-1
   coef_data <- NULL
   sample_data <- NULL
   
@@ -542,7 +541,7 @@ Nboot.fun <- function(Nboot,data_sample){
     
     if (count %in% save_c ){
       results_td <- list(coef_data,sample_data)
-      #  saveRDS(results_td, file=paste0("H:/La meva unitat/projects/ToU/outcome/tables/bootstrap/results_td_",count,".RData"))
+   #   saveRDS(results_td, file=paste0("bootstrap/revision/results_td_",count,".RData"))
       coef_data <- NULL
       sample_data <- NULL
       
@@ -568,7 +567,7 @@ Nboot.fun(Nboot,df_b)
 coef_data <- NULL
 for (i in seq(100,1000,100)){
   
-  results_td<-readRDS(paste0("G:/La meva unitat/projects/ToU/outcome/tables/bootstrap/results_td/results_td_",i,".RData"))
+  results_td<-readRDS(paste0("bootstrap/revision/results_td_",i,".RData"))
   coef_data_td <- results_td[[1]]
   
   coef_data <- rbind(coef_data,coef_data_td) 
@@ -582,7 +581,7 @@ coef_summ <- coef_data %>%
 
 ### Compare with main results
 
-df_pred<-read.csv(file = "analysis/output/data/df_lasso_rf.csv",header=TRUE, sep = ",",dec=".")
+df_pred<-read.csv(file = "analysis/output/data/df_placebo_lasso_rf/df_lasso_rf.csv",header=TRUE, sep = ",",dec=".")
 
 df_pred <- df_pred %>%
   filter(method=="LASSO")
@@ -602,9 +601,8 @@ reg_check <- felm (cons_res ~ (policy:tou_w_1 + policy:tou_w_2 + policy:tou_w_3
                                + placebo:tou_w_1 + placebo:tou_w_2 + placebo:tou_w_3):week_0
                    + (policy:tou_w_1 + policy:tou_w_2 + policy:tou_w_3
                       + placebo:tou_w_1 + placebo:tou_w_2 + placebo:tou_w_3):week_1
-                   |  factor(dist)*factor(hour)*factor(month) *factor(tou)*factor(weekend)+
-                     factor(year)*factor(dist) * factor(tou)*factor(hour)*factor(weekend)
-                   + factor(month_count)  *factor(tou) * factor(hour)*factor(weekend), weights=df_pred$consumer
+                   |  factor(dist)*factor(hour)*factor(month) *factor(weekend)+
+                   + factor(month_count)  * factor(hour)*factor(weekend), weights=df_pred$consumer
                    , df_pred)
 
 coef_reg <- coef(reg_check)
@@ -641,12 +639,12 @@ coef_data %>%
   geom_vline(xintercept=coef_reg_l,color=c("goldenrod", "#00859B", "firebrick"),
              linetype="dashed")+
 
-  annotate("text", x = coef_reg_l[1], y=70, label = as.character(round(coef_reg_l[1],3)),angle = 0, hjust = -0.3,color=c("goldenrod"),size=4)+
-  annotate("text", x = coef_reg_l[2], y=70, label = as.character(round(coef_reg_l[2],3)),angle = 0, hjust = 1.,color=c("#00859B"),size=4)+
-  annotate("text", x = coef_reg_l[3], y=70, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = -0.3,color=c("firebrick"),size=4)+
+  annotate("text", x = coef_reg_l[1], y=70, label = as.character(round(coef_reg_l[1],3)),angle = 0, hjust = -0.5,color=c("goldenrod"),size=4)+
+  annotate("text", x = coef_reg_l[2], y=70, label = as.character(round(coef_reg_l[2],3)),angle = 0, hjust = 1.2,color=c("#00859B"),size=4)+
+  annotate("text", x = coef_reg_l[3], y=80, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = 0,color=c("firebrick"),size=4)+
 
   scale_x_continuous(limit=c(-0.150,0.075),
-                      breaks=c(round(coef_mean[1],3)-0.008,round(coef_mean[2],3),round(coef_mean[3],3)+0.004),
+                      breaks=c(round(coef_mean[1],3)-0.01,round(coef_mean[2],3)+0.015,round(coef_mean[3],3)),
                      labels = my.labels)+
   My_Theme+
   theme(legend.position="bottom")+
@@ -691,12 +689,12 @@ coef_data %>%
   geom_vline(xintercept=coef_reg_l,color=c("goldenrod", "#00859B", "firebrick"),
              linetype="dashed")+
   
-  annotate("text", x = coef_reg_l[1], y=70, label = as.character(round(coef_reg_l[1],3)),angle = 0, hjust = -0.2,color=c("goldenrod"),size=4)+
-  annotate("text", x = coef_reg_l[2], y=70, label = as.character(round(coef_reg_l[2],3)),angle = 0, hjust = -0.2,color=c("#00859B"),size=4)+
-  annotate("text", x = coef_reg_l[3], y=70, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = 1,color=c("firebrick"),size=4)+
+  annotate("text", x = coef_reg_l[1], y=85, label = as.character(round(coef_reg_l[1],3)),angle = 0, hjust = -0.2,color=c("goldenrod"),size=4)+
+  annotate("text", x = coef_reg_l[2], y=70, label = as.character(round(coef_reg_l[2],3)),angle = 0, hjust = 1.3,color=c("#00859B"),size=4)+
+  annotate("text", x = coef_reg_l[3], y=70, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = -0.5,color=c("firebrick"),size=4)+
   
   scale_x_continuous(limit=c(-0.150,0.075),
-                     breaks=c(round(coef_mean[1],3)+0.008,round(coef_mean[2],3),round(coef_mean[3],3)-0.008),
+                     breaks=c(round(coef_mean[1],3)-0.015,round(coef_mean[2],3)+0.025,round(coef_mean[3],3)),
                      labels = my.labels)+
   My_Theme+
   theme(legend.position="bottom")+
@@ -744,10 +742,10 @@ coef_data %>%
   
   annotate("text", x = coef_reg_l[1], y=70, label = as.character(round(coef_reg_l[1],3)),angle = 0, hjust = -0.2,color=c("goldenrod"),size=4)+
   annotate("text", x = coef_reg_l[2], y=70, label = as.character(round(coef_reg_l[2],3)),angle = 0, hjust = -0.2,color=c("#00859B"),size=4)+
-  annotate("text", x = coef_reg_l[3], y=70, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = 1,color=c("firebrick"),size=4)+
+  annotate("text", x = coef_reg_l[3], y=70, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = 1.3,color=c("firebrick"),size=4)+
   
   scale_x_continuous(limit=c(-0.150,0.075),
-                     breaks=c(round(coef_mean[1],3)+0.007,round(coef_mean[2],3),round(coef_mean[3],3)-0.007),
+                     breaks=c(round(coef_mean[1],3)+0.007,round(coef_mean[2],3)-0.007,round(coef_mean[3],3)-0.007),
                      labels = my.labels)+
   My_Theme+
   theme(legend.position="bottom")+
@@ -793,7 +791,7 @@ coef_data %>%
   
   annotate("text", x = coef_reg_l[1], y=70, label = as.character(round(coef_reg_l[1],3)),angle = 0, hjust = -0.4,color=c("goldenrod"),size=4)+
   annotate("text", x = coef_reg_l[2], y=70, label = as.character(round(coef_reg_l[2],3)),angle = 0, hjust = -0.4,color=c("#00859B"),size=4)+
-  annotate("text", x = coef_reg_l[3], y=70, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = 1,color=c("firebrick"),size=4)+
+  annotate("text", x = coef_reg_l[3], y=70, label = as.character(round(coef_reg_l[3],3)),angle = 0, hjust = 1.2,color=c("firebrick"),size=4)+
   
   scale_x_continuous(limit=c(-0.150,0.075),
                      breaks=c(round(coef_mean[1],3),round(coef_mean[2],3),round(coef_mean[3],3)),

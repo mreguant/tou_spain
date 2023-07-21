@@ -74,7 +74,7 @@ if(PT_demand == "regulated"){
 
 
 # choose dependent variable
-dep_var = c("levels","logs","level pc","logs pc")[3]
+dep_var = c("levels","logs","level pc","logs pc")[4]
 
 
 if(dep_var == "level pc" |dep_var == "logs pc" ){
@@ -233,14 +233,14 @@ for (i in 1:length(unique(df_lasso$hour))){
     
     # split samples
     df_ch = filter(df_lasso,dist==unique(dist)[j],hour == unique(hour)[i])
-    df_pre = filter(df_ch, T_date == FALSE)
+    df_pre = filter(df_ch, P_date == FALSE)
     
     df_pre%>%  select(temp:ncol(.))%>%
       as.matrix()-> Xdata
     
     Y=df_pre$consumption
     
-    filter(df_ch, T_date == TRUE)%>%  select(temp:ncol(.))%>%
+    filter(df_ch, P_date == TRUE)%>%  select(temp:ncol(.))%>%
       as.matrix()-> Xpost
     
     #####  Get optimal lambda ####
@@ -312,7 +312,8 @@ df_pred$date <- as.Date(df_pred$date)
 df_pred %>% arrange(date) -> df_pred
 
 
-df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred_lasso
+#df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred_lasso
+df_pred %>%  mutate(cons_res_log = Data-Prediction) -> df_pred_lasso
 
 
 ##### 1.2 Random Forests  ==========================
@@ -328,14 +329,14 @@ for (i in 1:length(unique(df$hour))){
     
     # split samples
     df_ch = filter(df_lasso,dist==unique(dist)[j],hour == unique(hour)[i])
-    df_pre = filter(df_ch, T_date == FALSE)
+    df_pre = filter(df_ch, P_date == FALSE)
     
     df_pre%>%  select(temp:ncol(.))%>%
       as.matrix()-> Xdata
     
     Y=df_pre$consumption
     
-    filter(df_ch, T_date == TRUE)%>%  select(temp:ncol(.))%>%
+    filter(df_ch, P_date == TRUE)%>%  select(temp:ncol(.))%>%
       as.matrix()-> Xpost
     
    
@@ -372,7 +373,8 @@ df_pred$date <- as.Date(df_pred$date)
 df_pred %>% arrange(date) -> df_pred
 
 
-df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred_rf
+#df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred_rf
+df_pred %>%  mutate(cons_res_log = Data-Prediction) -> df_pred_rf
 
 
 #####
@@ -381,9 +383,9 @@ df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred_rf
 df <- rbind(df_pred_lasso,df_pred_rf)
 
 
-write.csv(x=df, "./analysis/output/data/df_lasso_rf.csv", row.names = F)
-write.csv(x=coef_data, "./analysis/output/data/coef_data.csv", row.names = F)
-write.csv(x=imp, "./analysis/output/data/importance_rf.csv", row.names = F)
+write.csv(x=df, "./analysis/output/data/df_lasso_rf_log.csv", row.names = F)
+#write.csv(x=coef_data, "./analysis/output/data/coef_data_log.csv", row.names = F)
+#write.csv(x=imp, "./analysis/output/data/importance_rf_log.csv", row.names = F)
 
 
 } else {
@@ -396,6 +398,20 @@ write.csv(x=imp, "./analysis/output/data/importance_rf.csv", row.names = F)
   
 }
 
+# merging predictions with levels and logs
+df<-read.csv(file = "analysis/output/data/df_placebo_lasso_rf/df_lasso_rf.csv",header=TRUE, sep = ",",dec=".")
+
+df_log<-read.csv(file = "analysis/output/data/df_placebo_lasso_rf/df_lasso_rf_log.csv",header=TRUE, sep = ",",dec=".")
+
+df_log %>% 
+  rename(Prediction_log = Prediction) %>% 
+  select(-Data,-In_sample,-Out_of_sample)->df_log
+
+df_f <- left_join(df,df_log,by=c("country","dist","method","date","year","month","hour"   ))
+
+
+#write.csv(x=df_f, "./analysis/output/data/df_lasso_rf.csv", row.names = F)
+####
 
 #########################################################################
 
