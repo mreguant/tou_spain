@@ -63,15 +63,20 @@ df %>% mutate(weekend = ifelse(weekend == "true" ,1,0),
               T_date = ifelse(year == 2021 & month >5,1,0),
               policy_month = policy*month,
               placebo_2 = ifelse (week_count>170 & country == "ES",1,0),
+              placebo_3 = ifelse (week_count>166 & country == "ES",1,0),
               placebo_policy_1 = placebo + policy,
               placebo_policy_2 = placebo_2 + policy,
+              placebo_policy_3 = placebo_3 + policy,
               week = ifelse(weekend == 0, 1, 0),
               tou = ifelse(hour<=8 | weekend == 1,1,
                            ifelse(  10< hour &  hour <= 14  | 18< hour &  hour <=22,3,2)),
               week_tdate = T_date*week_count,
               week_policy = policy*week_count,
+              tou_w = ifelse(hour<=8 ,1,
+                             ifelse(  10< hour &  hour <= 14  | 18< hour &  hour <=22,3,2)),
               week_placebo_1 = placebo_policy_1*week_count,
-              week_placebo_2 = placebo_policy_2*week_count) ->df
+              week_placebo_2 = placebo_policy_2*week_count,
+              week_placebo_3 = placebo_policy_3*week_count) ->df
 
 
 
@@ -86,7 +91,7 @@ df %>%
 
 ## creating dummies for regressions
 df %>% 
-  dummy_cols(.,select_columns = c("tou","week"))->df
+  dummy_cols(.,select_columns = c("tou","week","tou_w"))->df
 
 
 
@@ -105,6 +110,7 @@ df %>% filter(country=="ES") %>%
   filter(!(week_count ==179 & week_policy==0)) %>% 
   summarise(searches = weighted.mean(index_w,consumer,na.rm=TRUE)) %>% 
   filter(week_count > 170) %>% 
+  
   mutate(week_date = as.Date("2021-06-01") + (week_count-179)*7) ->df_w
 
 
@@ -140,10 +146,10 @@ lag <- NULL
 
 
 for (t in 1:3){
-    df %>% filter(week == 1  & tou == t) ->df_r
+    df %>% filter(week == 1  & tou_w == t) ->df_r
     
     
-    reg_week_policy <- felm (cons_res_lasso ~ factor(week_placebo_2)
+    reg_week_policy <- felm (cons_res_lasso ~ factor(week_placebo_3)
                              |  factor(dist)*factor(hour)*factor(month) + 
                                factor(week_count)*factor(hour)
                              | 0 | dist_m
@@ -192,7 +198,7 @@ coef_week %>%
   My_Theme
 
 
-ggsave(filename="weekly_effects.pdf",path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
+#ggsave(filename="weekly_effects.pdf",path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
 
 
 ##### 1.3 policy effects and google searches -----------------------
