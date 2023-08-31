@@ -51,6 +51,8 @@ select!(cons_es,[:year,:month,:group,:consumer])
 # B. DEMAND 
 demand_es0 = CSV.read("build/output/up_clean.csv",DataFrame)
 
+
+
 #names(demand_es0)
 select!(demand_es0, Not(["week_day", "weekend"]))
 

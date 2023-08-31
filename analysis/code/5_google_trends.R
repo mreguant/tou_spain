@@ -50,6 +50,8 @@ df_pred$date <- as.Date(df_pred$date)
 df_pred %>% arrange(date) -> df_pred
 
 
+
+
 ## indices
 df_i<-read.csv(file = "analysis/input/ES_PT_demand_by_dist.csv",header=TRUE, sep = ",",dec=".")
 df_i$date <- as.Date(df_i$date)
