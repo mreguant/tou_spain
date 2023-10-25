@@ -200,7 +200,7 @@ coef_week %>%
   My_Theme
 
 
-#ggsave(filename="weekly_effects.pdf",path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
+#ggsave(filename="weekly_effects.pdf",path = "./analysis/output/figures", width = 6, height = 5, device='pdf', dpi=700)
 
 
 ##### 1.3 policy effects and google searches -----------------------
@@ -229,4 +229,4 @@ policy_trend %>%
   guides(colour = guide_legend(override.aes = list(size=3)))
 
 
-ggsave(filename="searches_coef_placebo.pdf",path = "./analysis/output/figures", width = 6, height = 4, device='pdf', dpi=700)
+#ggsave(filename="searches_coef_placebo.pdf",path = "./analysis/output/figures", width = 6, height = 5, device='pdf', dpi=700)
