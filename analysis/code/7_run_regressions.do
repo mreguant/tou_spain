@@ -3,10 +3,13 @@
 ********************************************************************************
 
 
+/// GETTING TO PATH
+cd "/Users/marreguant/Library/CloudStorage/GoogleDrive-mar.reguant@bse.eu/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/analysis/output"
+
 /// LOADING DATA
  
 set type double
-import delimited using "df_reg.csv", clear
+import delimited using "data/df_reg.csv", clear
 
 
 /// VARIABLE CREATION
@@ -51,6 +54,8 @@ order disti year month day tou_fake weekd month_count
 egen clust = group(month_count disti)
 egen clust_bi = group(bimonth disti)
 
+replace cons_w = round(cons_w * 1000.0)
+
 /// SPECS
  
  global clust = "clust"
@@ -66,13 +71,13 @@ est clear
 foreach yvar in "log_demand" "cons_res_lasso" "cons_res_rf" "cons_res_lasso_log" "cons_res_rf_log" {
 
 	forvalues s = 1(1)4 {
-		reghdfe `yvar' i.policy_tou i.placebo_tou [w=cons_w], ///
+		reghdfe `yvar' i.policy_tou i.placebo_tou [fw=cons_w], ///
 		 absorb(${fe`s'}) vce(cluster $clust)
 		est sto spec`s'
 	
 	}
 
-	estout spec* using "/Users/mreguant/`yvar'.tex", replace /// 
+	estout spec* using "tables/`yvar'.tex", replace /// 
 		style(tex) drop(0.policy_tou 0.placebo_tou _cons) cells(b(star fmt(3)) se(par fmt(3))) collabels(none) mlabels(none) ///
 		stats(r2_a_within N, fmt(3 %9.0gc) label("\midrule R-sqr" Observations)) ///
 		order(4.policy_tou 2.policy_tou 3.policy_tou " " 4.placebo_tou 2.placebo_tou 3.placebo_tou) ///
@@ -88,13 +93,13 @@ foreach yvar in "log_demand" "cons_res_lasso" "cons_res_rf" "cons_res_lasso_log"
 
 	est clear
 	forvalues s = 1(1)4 {
-		reghdfe `yvar' i.policy_tou_wk i.placebo_tou_wk i.policy_tou_we i.placebo_tou_we [w=cons_w], ///
+		reghdfe `yvar' i.policy_tou_wk i.placebo_tou_wk i.policy_tou_we i.placebo_tou_we [fw=cons_w], ///
 		 absorb(${fe`s'}) vce(cluster $clust)
 		est sto spec`s'
 	
 	}
 	
-	estout spec* using "/Users/mreguant/`yvar'_wk.tex", replace collabels(none) mlabels(none)  /// 
+	estout spec* using "tables/`yvar'_wk.tex", replace collabels(none) mlabels(none)  /// 
 		style(tex) drop(0.policy_tou_wk 0.placebo_tou_wk 0.policy_tou_we 0.placebo_tou_we _cons)  cells(b(star fmt(3)) se(par fmt(3))) ///
 		stats(r2_a_within N, fmt(3 %9.0gc) label("\midrule R-sqr" Observations)) ///
 		order(4.policy_tou_wk 2.policy_tou_wk 3.policy_tou_wk 4.policy_tou_we 2.policy_tou_we 3.policy_tou_we  ///
@@ -109,13 +114,13 @@ foreach yvar in "log_demand" "cons_res_lasso" "cons_res_rf" "cons_res_lasso_log"
 	* no placebo
 	est clear
 	forvalues s = 1(1)4 {
-		reghdfe `yvar' i.policy_tou_wk i.policy_tou_we [w=cons_w], ///
+		reghdfe `yvar' i.policy_tou_wk i.policy_tou_we [fw=cons_w], ///
 		 absorb(${fe`s'}) vce(cluster $clust)
 		est sto spec`s'
 	
 	}
 	
-	estout spec* using "/Users/mreguant/`yvar'_wk_nop.tex", replace collabels(none) mlabels(none)  /// 
+	estout spec* using "tables/`yvar'_wk_nop.tex", replace collabels(none) mlabels(none)  /// 
 		style(tex) drop(0.policy_tou_wk 0.policy_tou_we _cons)  cells(b(star fmt(3)) se(par fmt(3))) ///
 		stats(r2_a_within N, fmt(3 %9.0gc) label("\midrule R-sqr" Observations)) ///
 		order(4.policy_tou_wk 2.policy_tou_wk 3.policy_tou_wk 4.policy_tou_we 2.policy_tou_we 3.policy_tou_we) ///
@@ -132,13 +137,13 @@ foreach yvar in "log_demand" "cons_res_lasso" "cons_res_rf" "cons_res_lasso_log"
 	est clear 
 	
 	forvalues s = 1(1)4 {
-		reghdfe `yvar' policy_tou_wed* placebo_tou_wed* i.policy_tou_wk i.placebo_tou_wk [w=cons_w], ///
+		reghdfe `yvar' policy_tou_wed* placebo_tou_wed* i.policy_tou_wk i.placebo_tou_wk [fw=cons_w], ///
 		 absorb(${fe`s'}) vce(cluster $clust)
 		est sto spec`s'
 	
 	}
 	
-	estout spec* using "/Users/mreguant/`yvar'_wk_diff.tex", replace collabels(none) mlabels(none)  /// 
+	estout spec* using "tables/`yvar'_wk_diff.tex", replace collabels(none) mlabels(none)  /// 
 		style(tex) drop(0.policy_tou_wk 0.placebo_tou_wk _cons)  cells(b(star fmt(3)) se(par fmt(3))) ///
 		stats(r2_a_within N, fmt(3 %9.0gc) label("\midrule R-sqr" Observations)) ///
 		order(policy_tou_wed_4 policy_tou_wed_2 policy_tou_wed_3 4.policy_tou_wk 2.policy_tou_wk 3.policy_tou_wk  ///
@@ -153,13 +158,13 @@ foreach yvar in "log_demand" "cons_res_lasso" "cons_res_rf" "cons_res_lasso_log"
 	* no placebo
 	est clear
 	forvalues s = 1(1)4 {
-		reghdfe `yvar' policy_tou_wed* i.policy_tou_wk [w=cons_w], ///
+		reghdfe `yvar' policy_tou_wed* i.policy_tou_wk [fw=cons_w], ///
 		 absorb(${fe`s'}) vce(cluster $clust)
 		est sto spec`s'
 	
 	}
 	
-	estout spec* using "/Users/mreguant/`yvar'_wk_diff_nop.tex", replace collabels(none) mlabels(none)  /// 
+	estout spec* using "tables/`yvar'_wk_diff_nop.tex", replace collabels(none) mlabels(none)  /// 
 		style(tex) drop(0.policy_tou_wk _cons)  cells(b(star fmt(3)) se(par fmt(3))) ///
 		stats(r2_a_within N, fmt(3 %9.0gc) label("\midrule R-sqr" Observations)) ///
 		order(policy_tou_wed_4 policy_tou_wed_2 policy_tou_wed_3 4.policy_tou_wk 2.policy_tou_wk 3.policy_tou_wk) ///
@@ -175,24 +180,24 @@ foreach yvar in "log_demand" "cons_res_lasso" "cons_res_rf" "cons_res_lasso_log"
 
 	est clear
 	
-		reghdfe log_demand i.policy_tou i.placebo_tou [w=cons_w], ///
+		reghdfe log_demand i.policy_tou i.placebo_tou [fw=cons_w], ///
 		 absorb(${fe2}) vce(cluster $clust)
 		est sto spec1
 	
-		reghdfe log_demand i.policy_tou i.placebo_tou [w=cons_w], ///
+		reghdfe log_demand i.policy_tou i.placebo_tou [fw=cons_w], ///
 		 absorb(${fe2}) vce(cluster clust_bi)
 		est sto spec2
 		
-		reghdfe cons_res_lasso i.policy_tou i.placebo_tou [w=cons_w], ///
+		reghdfe cons_res_lasso i.policy_tou i.placebo_tou [fw=cons_w], ///
 		 absorb(${fe2}) vce(cluster $clust)
 		est sto spec3
 		
-		reghdfe cons_res_lasso i.policy_tou i.placebo_tou [w=cons_w], ///
+		reghdfe cons_res_lasso i.policy_tou i.placebo_tou [fw=cons_w], ///
 		 absorb(${fe2}) vce(cluster clust_bi)
 		est sto spec4	
 		
 		
-	estout spec* using "/Users/mreguant/clusters.tex", replace /// 
+	estout spec* using "tables/clusters.tex", replace /// 
 		style(tex) drop(0.policy_tou 0.placebo_tou _cons) cells(b(star fmt(3)) se(par fmt(3))) collabels(none) mlabels(none) ///
 		stats(r2_a_within N, fmt(3 %9.0gc) label("\midrule R-sqr" Observations)) ///
 		order(4.policy_tou 2.policy_tou 3.policy_tou " " 4.placebo_tou 2.placebo_tou 3.placebo_tou) ///
@@ -248,17 +253,17 @@ foreach yvar in "log_demand" "cons_res_lasso" {
 
 	est clear
 	forvalues s = 1(1)4 {
-		reghdfe `yvar' ( log_price = log_tou_pmean ) [w=cons_w], ///
-		 absorb(${fe`s'}) vce(cluster $clust)
+		ivreghdfe `yvar' ( log_price = log_tou_pmean ) [fw=cons_w], ///
+		 absorb(${fe`s'}) vce(cluster ${clust})
 		eststo spec`s'
 	}
 	
-	ivreghdfe `yvar' (log_price price2 price3 price4 = log_tou_pmean inst2 inst3 inst4) [w=cons_w], ///
-		 absorb(${fe2}) cluster($clust)
+	ivreghdfe `yvar' (log_price price2 price3 price4 = log_tou_pmean inst2 inst3 inst4) [fw=cons_w], ///
+		 absorb(${fe2}) cluster(${clust})
 	eststo specsplit
 	
-	estout spec* using "/Users/mreguant/iv_`yvar'.tex", replace /// 
-		style(tex) drop(_cons) cells(b(star fmt(3)) se(par fmt(3))) collabels(none) mlabels(none) ///
+	estout spec* using "tables/iv_`yvar'.tex", replace /// 
+		style(tex) cells(b(star fmt(3)) se(par fmt(3))) collabels(none) mlabels(none) ///
 		stats(N, fmt(%9.0gc) label("\midrule Observations")) ///
 		label varlabels(log_price "Log(price)"  price1 "  $<$25th" ///
 			price2 "$\Delta$  25 - 75th " price3 "$\Delta$ 75 - 90th" price4 "$\Delta$ $>$90th") ///
@@ -283,7 +288,7 @@ cap qui forvalues h = 1(1)`r(max)' {
 foreach yvar in "log_demand" "cons_res_lasso" "cons_res_rf" "cons_res_lasso_log" "cons_res_rf_log" {
  forvalues spec = 1(1)3 {
  	
-	reghdfe `yvar' i.policy_tou_wk_* i.placebo_tou_wk_* i.policy_tou_we_* i.placebo_tou_we_* [w=cons_w], ///
+	reghdfe `yvar' i.policy_tou_wk_* i.placebo_tou_wk_* i.policy_tou_we_* i.placebo_tou_we_* [fw=cons_w], ///
 		absorb(${fe`spec'}) vce(cluster disti#month_count)
 
 	if (`spec'==1 & "`yvar'"=="log_demand") {
@@ -312,9 +317,58 @@ drop prefix var
 order model spec period treatment hour
 sort model spec period treatment hour
 
-export delimited using results_plot.csv, replace
+export delimited using "data/results_plot.csv", replace
 restore
 
+
+/// BLOCK EFFECTS - ALL
+gen block = ceil(hour/3)
+summ block
+cap qui forvalues h = 1(1)`r(max)' {
+ 	gen policy_tou_wk_`h' = 0
+	replace policy_tou_wk_`h' = policy if block==`h' & weekd == 2
+	gen placebo_tou_wk_`h' = 0
+	replace placebo_tou_wk_`h' = placebo + policy if block==`h' & weekd == 2
+	gen policy_tou_we_`h' = 0
+	replace policy_tou_we_`h' = policy if block==`h' & weekd == 1
+	gen placebo_tou_we_`h' = 0
+	replace placebo_tou_we_`h' = placebo + policy if block==`h' & weekd == 1
+ }
+ 
+foreach yvar in "log_demand" "cons_res_lasso" "cons_res_rf" "cons_res_lasso_log" "cons_res_rf_log" {
+ forvalues spec = 1(1)3 {
+ 	
+	reghdfe `yvar' i.policy_tou_wk_* i.placebo_tou_wk_* i.policy_tou_we_* i.placebo_tou_we_* [fw=cons_w], ///
+		absorb(${fe`spec'}) vce(cluster disti#month_count)
+
+	if (`spec'==1 & "`yvar'"=="log_demand") {
+		regsave using results, replace addlabel(model, "`yvar'", spec, `spec')
+	}
+	else {
+		regsave using results, append addlabel(model, "`yvar'", spec, `spec')
+	}
+ }
+}
+
+* cleaning up coefficients
+preserve
+use results.dta, clear
+drop if var=="_cons"
+gen prefix = substr(var,1,1)
+drop if prefix=="0"
+replace var = subinstr(var,"_"," ",.)
+replace var = subinstr(var,"."," ",.)
+gen treatment = word(var, 2)
+gen period = word(var, 4)
+gen hour = real(word(var, 5))
+
+drop prefix var
+
+order model spec period treatment hour
+sort model spec period treatment hour
+
+export delimited using "data/results_plot_diff.csv", replace
+restore
 
 
 /// BLOCK EFFECTS - DIST
@@ -335,7 +389,7 @@ foreach yvar in "log_demand" "cons_res_lasso" "cons_res_rf" "cons_res_lasso_log"
  forvalues spec = 1(1)3 {
  	
 	reghdfe `yvar' i.policy_dist_wk_* i.placebo_dist_wk_* ///
-		i.policy_dist_we_* i.placebo_dist_we_* [w=cons_w], ///
+		i.policy_dist_we_* i.placebo_dist_we_* [fw=cons_w], ///
 		absorb(${fe`spec'}) vce(cluster disti#month_count)
 
 	if (`spec'==1 & "`yvar'"=="log_demand") {
@@ -365,5 +419,5 @@ drop prefix var
 order model spec dist period treatment hour
 sort model spec dist period treatment hour
 
-export delimited using results_plot_dist.csv, replace
+export delimited using "data/results_plot_dist.csv", replace
 restore
