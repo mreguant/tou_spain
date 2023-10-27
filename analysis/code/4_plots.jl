@@ -62,38 +62,45 @@ cd(string(shared_drive_path))
 ## selecting coef from STATA results ################################
 
 df_coef = CSV.read("analysis/output/data/results_plot.csv", DataFrame, missingstring=["NA",""])  
+df_coef_diff = CSV.read("analysis/output/data/results_plot_diff.csv", DataFrame, missingstring=["NA",""])  
 
+filter!(row->row.treatment == "policy",df_coef_diff)
+df_coef_diff.treatment .= "diff"
 
+append!(df_coef,df_coef_diff)
 
 df_coef.hour3 = df_coef.hour .*3 .- 2 
 
-mshapes = repeat([:circle, :diamond], inner = 8)
+mshapes = repeat([:circle, :diamond,:rect], inner = 8)
+mline = repeat([:solid, :solid,:dash], inner = 8)
 
-unique(df_coef.spec)
+unique(df_coef.model) # spec2 preferred FE
 
-model_p=["cons_res_lasso","cons_res_rf","log_demand"][3]
-period_p=["we","wk"][2]
+for i in 1:3
+    for j in 1:2        
+model_p=["cons_res_lasso","cons_res_rf","log_demand"][i]
+period_p=["we","wk"][j]
 
 df_plot = filter(row->row.model == model_p && row.period == period_p && row.spec==2, df_coef)
 
-
-p_week_fe= plot(df_plot.hour3, df_plot.coef .* 100, group=df_plot.treatment,
-                seriestype = :scatterpath, linewidth = 3, color=[1 2],
+plot_hour= plot(df_plot.hour3, df_plot.coef .* 100, group=df_plot.treatment,
+                seriestype = :scatterpath, linewidth = 3, color=[3 2 1],
                 ribbon = 1.96 * df_plot.stderr*100, fa = 0.15, fc = :grey,
                 # title = t,
                 xlabel = "hour",
                 ylabel = "Change in Aggregate Consumption (%)",
-                label = ["placebo" "policy"],
+                label = ["difference" "placebo" "policy"],
+                linestyle = mline,
                 markershape = mshapes
         )
 plot!([0], seriestype = "hline", color = :red,label="")
         ylims!(-15,15)
 
 
+savefig(plot_hour,string("analysis/output/figures/rr/TD_",model_p,"_",period_p,".pdf"))
+    end
 
-#savefig(p_week_fe,string("analysis/output/figures/rr/TD_week_fe.pdf"))
-#savefig(p_weekend_fe,string("analysis/output/figures/rr/TD_weekend_fe.pdf"))
-
+end
 
 # 4.2. DISTRIBUTION AREA AND TOU-WEEK (PANEL FE)
 #________________________________________________________________________________________________________________________________________
