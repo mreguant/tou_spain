@@ -322,16 +322,9 @@ restore
 
 
 /// BLOCK EFFECTS - ALL
-gen block = ceil(hour/3)
 summ block
 cap qui forvalues h = 1(1)`r(max)' {
- 	gen policy_tou_wk_`h' = 0
-	replace policy_tou_wk_`h' = policy if block==`h' & weekd == 2
-	gen placebo_tou_wk_`h' = 0
 	replace placebo_tou_wk_`h' = placebo + policy if block==`h' & weekd == 2
-	gen policy_tou_we_`h' = 0
-	replace policy_tou_we_`h' = policy if block==`h' & weekd == 1
-	gen placebo_tou_we_`h' = 0
 	replace placebo_tou_we_`h' = placebo + policy if block==`h' & weekd == 1
  }
  
