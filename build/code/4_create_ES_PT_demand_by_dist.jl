@@ -67,14 +67,14 @@ filter!(row->row.tipo_UP=="Comercializador de referencia",demand_es0)
 
 # consumption
 up_cons = combine(groupby(demand_es0,[:year,:month,:day,:firm]), names(demand_es0,Between(:h1,:h24)).=> sum .=> names(demand_es0,Between(:h1,:h24)))
-up_cons = stack(up_cons,names(up_cons,Between(:h1,:h24)))
+up_cons = DataFrames.stack(up_cons,names(up_cons,Between(:h1,:h24)))
 rename!(up_cons,:variable=>:hour,:value=>:demand)
 up_cons.hour= parse.(Int, replace.(up_cons.hour, "h"=>""))
 up_cons.demand = replace(up_cons.demand, 0 => missing)
 
 # temperature
 up_temp = combine(groupby(demand_es0,[:year,:month,:day,:firm]), names(demand_es0,Between("temp.1","temp.24")).=> mean .=> names(demand_es0,Between("temp.1","temp.24")))
-up_temp = stack(up_temp,names(up_temp,Between("temp.1","temp.24")))
+up_temp = DataFrames.stack(up_temp,names(up_temp,Between("temp.1","temp.24")))
 rename!(up_temp,:variable=>:hour,:value=>:temp)
 up_temp.hour = parse.(Int, replace.(up_temp.hour,"temp."=>""))
 
@@ -162,7 +162,7 @@ demand_pt =  leftjoin(demand_pt0,select(df_PT_temp,:temp,:date,:hour),on=[:date,
 #unique(check.date[year.(check.date) .!= 2022, :])
 
 # Wide to long 
-demand_pt = stack(demand_pt,[:PT_reg,:PT_total])
+demand_pt = DataFrames.stack(demand_pt,[:PT_reg,:PT_total])
 select!(demand_pt, :date, :year,:month,:day,:variable=>:dist,:hour,:value=>:demand,:temp)
 
 
@@ -271,3 +271,4 @@ df_save = select!(df_final,[:date,:quarter,:country,:dist,:year,:month,:day,:hou
 
 
 CSV.write("analysis/input/ES_PT_demand_by_dist.csv", df_save)
+
