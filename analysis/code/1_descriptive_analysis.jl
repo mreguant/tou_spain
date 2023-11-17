@@ -25,10 +25,10 @@ user = splitdir(homedir())[end]
 
 if user == "JacintE"
     # Jacint - Personal computer
-    global shared_drive_path = "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+    global shared_drive_path = "H:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 else
     # BSE computers ("Jacint Enrich" / "Ruoyi Li")
-    global shared_drive_path = "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+    global shared_drive_path = "G:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 end
 
 cd(string(shared_drive_path))
@@ -39,9 +39,9 @@ cd(string(shared_drive_path))
 
 
 # Setting working directory 
-if !endswith(pwd(), "tou_spain")
-    cd(dirname(dirname(@__DIR__)))
-end
+#if !endswith(pwd(), "tou_spain")
+#    cd(dirname(dirname(@__DIR__)))
+#end
 
 # Create folders
 if !isdir("analysis/output")
@@ -56,15 +56,13 @@ if !isdir("analysis/output/figures")
     mkdir("analysis/output/figures")
 end
 
-
-if !isdir("analysis/to_add/tables")
-    mkdir("analysis/to_add/tables")
-end
 # PRICES 
 #______________________________________________________________________________________________________________________________________________________________________________________
 # Compare average prices PVPC before and after policy
 
 demand0 = CSV.read("analysis/input/ES_PT_demand_by_dist.csv", DataFrame)
+
+
 filter!(row -> row.dist != "PT_total", demand0)
 demand1 = combine(groupby(demand0, [:date, :year, :month, :day, :hour, :country]), 
     [:demand, :consumer] .=> sum .=> [:demand, :consumer]

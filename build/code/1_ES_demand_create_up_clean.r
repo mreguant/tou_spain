@@ -18,9 +18,9 @@ library("ncdf4")  # package for netcdf manipulation
 ##!! change --
 
 if ( Sys.info()[7]=="JacintE") {
-  shared_path <- "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+  shared_path <- "H:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 } else if ( Sys.info()[7]=="Jacint Enrich") {
-  shared_path <- "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+  shared_path <- "G:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 } 
 
 setwd(shared_path)

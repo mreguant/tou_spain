@@ -97,7 +97,7 @@ plot!([0], seriestype = "hline", color = :red,label="")
         ylims!(-15,15)
 
 
-savefig(plot_hour,string("analysis/output/figures/rr/TD_",model_p,"_",period_p,".pdf"))
+savefig(plot_hour,string("analysis/output/figures/TD_",model_p,"_",period_p,".pdf"))
     end
 
 end
@@ -148,7 +148,7 @@ legend = plot(1:2, [-1,1], group=0:1,
 
 unique(df_plot.model)
 
-method = ["cons_res_lasso","cons_res_rf","log_demand"][3]
+method = ["cons_res_lasso","cons_res_rf","log_demand"][1]
 
 graph_dist = plot(
     title, plot_dist(df_plot,"EDP",method),plot_dist(df_plot,"ENDESA",method),

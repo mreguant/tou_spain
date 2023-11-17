@@ -60,12 +60,12 @@ cd(string(shared_drive_path))
 # Load data
 df_clean = CSV.read("analysis/input/ES_PT_demand_by_dist.csv", DataFrame, missingstring=["NA",""])
 
-df_pred = CSV.read("analysis/output/data/df_lasso_rf.csv", DataFrame, missingstring=["NA",""]) # lasso
+df_pred = CSV.read("analysis/output/data/df_lasso_rf_merged.csv", DataFrame, missingstring=["NA",""]) # lasso
 
 
-select!(df_pred, Not([:year,:month,:In_sample,:Out_of_sample]))
+select!(df_pred, Not([:year,:month,:In_sample,:Out_of_sample,:In_sample_log,:Out_of_sample_log]))
 df_rf = filter(row->row.method == "Random Forest",df_pred)
-select!(df_rf, Not([:country,:method,:Data]))
+select!(df_rf, Not([:country,:method,:Data,:Data_log]))
 rename!(df_rf, [:Prediction, :cons_res,:Prediction_log, :cons_res_log] .=> [:Prediction_rf, :cons_res_rf,:Prediction_rf_log, :cons_res_rf_log]  )
 filter!(row->row.method == "LASSO",df_pred)
 rename!(df_pred, [:Prediction, :cons_res,:Prediction_log, :cons_res_log] .=> [:Prediction_lasso, :cons_res_lasso,:Prediction_lasso_log, :cons_res_lasso_log]  )

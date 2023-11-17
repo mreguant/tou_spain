@@ -74,7 +74,7 @@ if(PT_demand == "regulated"){
 
 
 # choose dependent variable
-dep_var = c("levels","logs","level pc","logs pc")[4]
+dep_var = c("levels","logs","level pc","logs pc")[3]
 
 
 if(dep_var == "level pc" |dep_var == "logs pc" ){
@@ -196,7 +196,7 @@ for (i in (which(colnames(df_lasso)=="tempmax")+1):end){
 #keep initial dataframe:
 df_baseline <- df
 
-run_model <- c("YES","NO")[1]
+run_model <- c("YES","NO")[2]
 
 if (run_model == "YES"){
 
@@ -312,8 +312,8 @@ df_pred$date <- as.Date(df_pred$date)
 df_pred %>% arrange(date) -> df_pred
 
 
-#df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred_lasso
-df_pred %>%  mutate(cons_res_log = Data-Prediction) -> df_pred_lasso
+df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred_lasso
+#df_pred %>%  mutate(cons_res_log = Data-Prediction) -> df_pred_lasso
 
 
 ##### 1.2 Random Forests  ==========================
@@ -373,8 +373,8 @@ df_pred$date <- as.Date(df_pred$date)
 df_pred %>% arrange(date) -> df_pred
 
 
-#df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred_rf
-df_pred %>%  mutate(cons_res_log = Data-Prediction) -> df_pred_rf
+df_pred %>%  mutate(cons_res = log(Data)-log(Prediction)) -> df_pred_rf
+#df_pred %>%  mutate(cons_res_log = Data-Prediction) -> df_pred_rf
 
 
 #####
@@ -383,34 +383,32 @@ df_pred %>%  mutate(cons_res_log = Data-Prediction) -> df_pred_rf
 df <- rbind(df_pred_lasso,df_pred_rf)
 
 
-write.csv(x=df, "./analysis/output/data/df_lasso_rf_log.csv", row.names = F)
-#write.csv(x=coef_data, "./analysis/output/data/coef_data_log.csv", row.names = F)
-#write.csv(x=imp, "./analysis/output/data/importance_rf_log.csv", row.names = F)
+write.csv(x=df, "./analysis/output/data/df_lasso_rf.csv", row.names = F)
+write.csv(x=coef_data, "./analysis/output/data/coef_data.csv", row.names = F)
+write.csv(x=imp, "./analysis/output/data/importance_rf.csv", row.names = F)
 
 
-} else {
+} 
 
-  
-  df<-read.csv(file = "analysis/output/data/df_lasso_rf.csv",header=TRUE, sep = ",",dec=".")
-  coef_data<-read.csv(file = "./analysis/output/data/coef_data.csv",header=TRUE, sep = ",",dec=".")
-  imp<-read.csv(file = "./analysis/output/data/importance_rf.csv",header=TRUE, sep = ",",dec=".")
-  
-  
-}
+### NOTE: need to run two times: one with logs per capita and the other level per capita. This parameter is choosen in section 0.1
+#Then, one only needs to change the commented lines within the loop (two of them).
 
-# merging predictions with levels and logs
-df<-read.csv(file = "analysis/output/data/df_placebo_lasso_rf/df_lasso_rf.csv",header=TRUE, sep = ",",dec=".")
 
-df_log<-read.csv(file = "analysis/output/data/df_placebo_lasso_rf/df_lasso_rf_log.csv",header=TRUE, sep = ",",dec=".")
+#merging predictions with levels and logs
+df<-read.csv(file = "analysis/output/data/df_lasso_rf.csv",header=TRUE, sep = ",",dec=".")
 
-df_log %>% 
-  rename(Prediction_log = Prediction) %>% 
-  select(-Data,-In_sample,-Out_of_sample)->df_log
+df_log<-read.csv(file = "analysis/output/data/df_lasso_rf_log.csv",header=TRUE, sep = ",",dec=".")
+
+df_log %>%
+  rename(Prediction_log = Prediction,
+         Data_log = Data,
+         In_sample_log = In_sample,
+         Out_of_sample_log = Out_of_sample) ->df_log
 
 df_f <- left_join(df,df_log,by=c("country","dist","method","date","year","month","hour"   ))
 
 
-#write.csv(x=df_f, "./analysis/output/data/df_lasso_rf.csv", row.names = F)
+#write.csv(x=df_f, "./analysis/output/data/df_lasso_rf_merged.csv", row.names = F)
 ####
 
 #########################################################################
@@ -421,6 +419,16 @@ df_f <- left_join(df,df_log,by=c("country","dist","method","date","year","month"
 
 
 ##### 2.1 model fit ==========================
+
+## comment for levels
+df<-df_log
+df %>%
+  rename(Prediction = Prediction_log,
+         cons_res = cons_res_log,
+         Data = Data_log,
+         In_sample = In_sample_log,
+         Out_of_sample = Out_of_sample_log) ->df
+##
 
 df$date <- as.Date(df$date)
 
@@ -559,9 +567,12 @@ ggsave(filename=paste0("prediction_",i,".pdf"),path = "./analysis/output/figures
 
 
 ##### 2.2 Validity checks ==========================
+coef_data<-read.csv(file = "analysis/output/data/coef_data_log.csv",header=TRUE, sep = ",",dec=".")
+imp<-read.csv(file = "analysis/output/data/importance_rf_log.csv",header=TRUE, sep = ",",dec=".")
 
 
 ### LASSO: fraction of models selecting variable type
+
 
 coef_data %<>% mutate(country = ifelse(dist == "PT_reg","PT","ES"))
 

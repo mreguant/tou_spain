@@ -25,10 +25,10 @@ user = splitdir(homedir())[end]
 
 if user == "JacintE"
     # Jacint - Personal computer
-    global shared_drive_path = "H:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+    global shared_drive_path = "G:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 else
     # BSE computers ("Jacint Enrich" / "Ruoyi Li")
-    global shared_drive_path = "G:/La meva unitat/projects/ToU/repo_jazz_tou_spain/"
+    global shared_drive_path = "G:/.shortcut-targets-by-id/1BU5l14i0SrXBAmBrDVi9LbwgG6Ew1s_t/ENECML/11_ToU/repository_data/"
 end
 
 cd(string(shared_drive_path))
